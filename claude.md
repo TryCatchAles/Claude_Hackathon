@@ -36,9 +36,7 @@ The system is built around:
   * Google Calendar
   * Google Meet link
 * Session must be validated using:
-
-  * attendance
-  * overlap duration
+  * Manual confirmation from participants (Honor System)
 
 ---
 
@@ -125,7 +123,7 @@ Triggers:
 * Ratings only from real sessions
 * One rating per session
 * Repeat interactions may be down-weighted
-* Session validation required (Google Meet attendance data)
+* Session validation required (Manual confirmation)
 
 ---
 

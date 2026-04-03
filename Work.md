@@ -9,7 +9,7 @@
 | Database | Supabase Postgres + Row Level Security |
 | Auth | Supabase Auth (Google OAuth only) |
 | AI | Claude API (`src/lib/ai/claude.ts`) |
-| Integrations | Google Meet API, Google Calendar API |
+| Integrations | Google Calendar API (Centralized Account) |
 | Hosting | Vercel |
 | Testing | Playwright (E2E), Vitest (unit) |
 
@@ -41,7 +41,7 @@ src/
 
   actions/
     auth.ts                   ← Google OAuth session helpers, profile bootstrap, sign out
-    sessions.ts               ← Create/confirm/validate sessions, attendance tracking
+    sessions.ts               ← Create/confirm/validate sessions (manual honor system)
     ratings.ts                ← Submit rating, enforce once-per-session rule
     credits.ts                ← Award credits on high rating, read credit balance
     disputes.ts               ← File dispute, pause credits, admin resolution
@@ -68,7 +68,7 @@ src/
 1. **DB schema** (`001_init.sql`) — tables: `users`, `profiles`, `skills`, `sessions`, `bookings`, `ratings`, `credits`, `disputes`, `flags`. Add RLS so users can only read/write their own data.
 2. **Types** (`types/index.ts`) — TypeScript interfaces for every table row + action return shapes.
 3. **Auth actions** — `signInWithGoogle()`, `getSession()`, `ensureProfile()`, `signOut()`.
-4. **Session actions** — `createSession()`, `confirmSession()`, `markAttendance()`, `validateSession()` (checks overlap duration before allowing rating).
+4. **Session actions** — `createSession()`, `confirmSession()`, `markCompleted()`, `validateSession()` (requires mutual or mentee confirmation before allowing rating).
 5. **Rating actions** — `submitRating()` (enforce: session must be validated, one rating max, mentee only).
 6. **Credits actions** — `awardCredits()` (triggered by high rating), `getUserCredits()`.
 7. **Disputes actions** — `fileDispute()`, `pauseCredit()`, `resolveDispute()`.
@@ -102,8 +102,8 @@ Then test RLS with two different user JWTs to confirm isolation.
 **Manual flow** (after Person 2 has Google Meet/Calendar wired up):
 1. Sign in with Google
 2. Fill profile (skill hashtags, bio, school)
-3. Book a session (requires Person 2's Google Meet/Calendar work)
-4. Mark attendance → validate session
+3. Book a session (requires Person 2's Google Calendar work)
+4. Mark session completed → validate session
 5. Submit rating → check credit awarded
 6. File dispute → confirm credit paused
 
@@ -150,36 +150,30 @@ tests/
 
 ### What to Build
 
-1. **Google Meet client** (`lib/meet/client.ts`):
-   - `getConferenceRecord(meetingCodeOrRecordId)` → returns conference start/end data
-   - `getParticipantSessions(conferenceRecordId)` → used by session validation
-   - `validateOverlap(conferenceRecordId, minMinutes)` → returns `true` if attendance threshold met
-
-2. **Google Calendar client** (`lib/calendar/client.ts`):
+1. **Google Calendar client** (`lib/calendar/client.ts`):
    - `createEvent(mentorId, menteeId, startTime)` → creates event, generates Meet link, sends invites
    - `getAvailableSlots(mentorId, date)` → returns free slots for booking UI
 
-3. **Claude AI client** (`lib/ai/claude.ts`):
+2. **Claude AI client** (`lib/ai/claude.ts`):
    - `matchMentors(query, mentors[])` → sends query + the full array of mentor profiles to Claude, returns ranked list with relevance scores.
    - *Note on Scalability*: Keep it simple. Pass the entire array of users directly in the prompt. Do not set up complex vector databases right now.
    - Prompt must enforce: no name matching, skill/keyword only.
 
-4. **Booking action** (`actions/bookings.ts`):
+3. **Booking action** (`actions/bookings.ts`):
    - `createBooking(mentorId, menteeId, slot)`:
      1. Call `createEvent()` → create the Calendar event and Meet link
-     2. Store the Meet identifiers needed for validation
-     3. Write booking + session row to DB
-     4. Return confirmation
+     2. Write booking + session row to DB
+     3. Return confirmation
 
-5. **Book page** (`app/(dashboard)/book/[mentorId]/page.tsx`) — slot picker that calls `createBooking()`.
+4. **Book page** (`app/(dashboard)/book/[mentorId]/page.tsx`) — slot picker that calls `createBooking()`.
 
-6. **Vercel + env config** — set up all env vars in `vercel.json` and `.env.local.example`:
+5. **Vercel + env config** — set up all env vars in `vercel.json` and `.env.local.example`:
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
-   - `GOOGLE_MEET_WEBHOOK_SECRET` or related Meet subscription secrets if needed
-   - `ANTHROPIC_API_KEY`
+   - `APP_CENTRAL_GOOGLE_REFRESH_TOKEN` (for centralized calendar service)
+   - `GEMINI_API_KEY` (or `ANTHROPIC_API_KEY` if using hackathon credits)
    - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
-7. **Playwright E2E tests** — full flows that run against local dev server.
+6. **Playwright E2E tests** — full flows that run against local dev server.
 
 ---
 
@@ -194,13 +188,6 @@ npx playwright test tests/e2e/booking.spec.ts  # single file
 ```
 
 **Test each integration in isolation:**
-
-Google Meet:
-```bash
-# Read a test conference record / participant sessions via the client
-npx tsx scripts/test-meet.ts
-# Should print conference timing and participant session data
-```
 
 Google Calendar:
 ```bash

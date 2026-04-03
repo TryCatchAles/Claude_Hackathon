@@ -86,8 +86,7 @@ Used for:
 
 ### 5. External Services
 
-* Google Meet API → attendance, participant sessions, validation
-* Google Calendar API → scheduling + Meet link creation
+* Google Calendar API → scheduling + Meet link creation via centralized service account
 
 ---
 

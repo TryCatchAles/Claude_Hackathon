@@ -59,10 +59,8 @@ Flow:
 
 * Sessions occur on Google Meet
 * System tracks:
-
-  * attendance
-  * duration
-  * overlap
+  * Scheduled time
+  * Manual confirmation (Honor System) to validate completion
 
 ---
 
@@ -170,7 +168,6 @@ User → Search → Match → Book → Session → Validate → Rate → Credit
 
 ### External APIs
 
-* Google Meet API
 * Google Calendar API
 
 ---

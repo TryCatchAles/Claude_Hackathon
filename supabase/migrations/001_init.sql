@@ -93,16 +93,14 @@ create table public.sessions (
   -- Google Calendar / Meet fields
   calendar_event_id    text,       -- Google Calendar event ID
   meet_meeting_code    text,       -- Google Meet meeting code (e.g. abc-defg-hij)
-  conference_record_id text,       -- Google Meet conference record ID for attendance API
 
   -- Scheduling
   scheduled_at         timestamptz not null,
   duration_minutes     integer     not null check (duration_minutes > 0),
 
-  -- Validation: set true once attendance overlap is confirmed
+  -- Validation: set true once session is manually confirmed by participants
   validated            boolean     default false,
   validated_at         timestamptz,
-  actual_duration_minutes integer, -- real overlap duration from Meet data
 
   -- Lifecycle
   status               text        default 'pending'
