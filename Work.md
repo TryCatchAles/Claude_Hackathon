@@ -9,7 +9,7 @@
 | Database | Supabase Postgres + Row Level Security |
 | Auth | Supabase Auth (Email OTP + Phone) |
 | AI | Claude API (`src/lib/ai/claude.ts`) |
-| Integrations | Zoom API, Google Calendar API |
+| Integrations | Google Meet API, Google Calendar API |
 | Hosting | Vercel |
 | Testing | Playwright (E2E), Vitest (unit) |
 
@@ -100,10 +100,10 @@ npx supabase db push        # push schema changes
 ```
 Then test RLS with two different user JWTs to confirm isolation.
 
-**Manual flow** (after Person 2 has Zoom/Calendar wired up):
+**Manual flow** (after Person 2 has Google Meet/Calendar wired up):
 1. Sign up via OTP → verify phone
 2. Fill profile (skill hashtags, bio, school)
-3. Book a session (requires Person 2's Zoom/Calendar)
+3. Book a session (requires Person 2's Google Meet/Calendar)
 4. Mark attendance → validate session
 5. Submit rating → check credit awarded
 6. File dispute → confirm credit paused
@@ -114,7 +114,7 @@ Then test RLS with two different user JWTs to confirm isolation.
 
 ### Responsibility
 
-All external service connections (Zoom, Google Calendar, Claude AI), deployment config, and the testing harness. Also owns the booking flow that bridges Person 1's session actions with real Zoom meetings and calendar events.
+All external service connections (Google Meet, Google Calendar, Claude AI), deployment config, and the testing harness. Also owns the booking flow that bridges Person 1's session actions with real Google Meet meetings and calendar events. We must automatically add both the mentee and the mentor to the invited list, in order for both to be able to join the reunion smoothly at their destined time.
 
 ---
 
@@ -123,15 +123,15 @@ All external service connections (Zoom, Google Calendar, Claude AI), deployment 
 ```
 src/
   lib/
-    zoom/
-      client.ts               ← Zoom API client: create meeting, get participants, validate overlap
+    meet/
+      client.ts               ← Google Meet API client: create meeting (via a single centralized Google bot account)
     calendar/
-      client.ts               ← Google Calendar API: create event, check availability, send invite
+      client.ts               ← Google Calendar API: create event, automatically invite mentee and mentor via their DB emails
     ai/
-      claude.ts               ← Claude API: map search query → ranked mentor list
+      claude.ts               ← Claude API: map search query → ranked mentor list (pass all mentor profiles directly in prompt)
 
   actions/
-    bookings.ts               ← (NEW) createBooking(): calls Zoom + Calendar + writes to DB
+    bookings.ts               ← (NEW) createBooking(): calls Google Meet + Calendar + writes to DB
 
   app/
     (dashboard)/
@@ -151,30 +151,32 @@ tests/
 
 ### What to Build
 
-1. **Zoom client** (`lib/zoom/client.ts`):
-   - `createMeeting(hostId, startTime, duration)` → returns join URL + meeting ID
-   - `getMeetingParticipants(meetingId)` → used by session validation
-   - `validateOverlap(meetingId, minMinutes)` → returns `true` if attendance threshold met
+1. **Google Meet client** (`lib/meet/client.ts`):
+   - `createMeeting(startTime, duration)` → returns join URL + meeting ID using the single centralized Google bot account.
+   - *Note on Attendance*: Do NOT use Google APIs for attendance/overlap validation, as fetching participants programmatically often requires paid Google Workspace tiers. Implement a 100% free solution: track attendance by recording when both users click the platform's "Join Meeting" button in the DB.
 
 2. **Google Calendar client** (`lib/calendar/client.ts`):
-   - `createEvent(mentorId, menteeId, startTime, zoomUrl)` → creates event, sends invites
-   - `getAvailableSlots(mentorId, date)` → returns free slots for booking UI
+   - `createEvent(mentorEmail, menteeEmail, startTime, meetUrl, mentorName, menteeName)` → creates event using the centralized account.
+   - Automatically adds both `menteeEmail` and `mentorEmail` (fetched from Supabase DB) to the invited list.
+   - The event title MUST be: `"Mentorship Session: [Mentee Name] & [Mentor Name]"`.
+   - *Note on Availability*: Do NOT read personal Google Calendars for availability. Mentors and mentees define their available hours in the Supabase DB.
 
 3. **Claude AI client** (`lib/ai/claude.ts`):
-   - `matchMentors(query, mentors[])` → sends query + mentor profiles to Claude, returns ranked list with relevance scores
-   - Prompt must enforce: no name matching, skill/keyword only
+   - `matchMentors(query, mentors[])` → sends query + the full array of mentor profiles to Claude, returns ranked list with relevance scores.
+   - *Note on Scalability*: Keep it simple. Pass the entire array of users directly in the prompt. Do not set up complex vector databases right now.
+   - Prompt must enforce: no name matching, skill/keyword only.
 
 4. **Booking action** (`actions/bookings.ts`):
    - `createBooking(mentorId, menteeId, slot)`:
-     1. Call `createMeeting()` → get Zoom URL
-     2. Call `createEvent()` → add to both calendars
-     3. Write booking + session row to DB
-     4. Return confirmation
+     1. Fetch mentor and mentee emails and names from Supabase.
+     2. Call `createMeeting()` → get Google Meet URL.
+     3. Call `createEvent()` → add to both calendars, explicitly inviting both via email.
+     4. Write booking + session row to DB.
+     5. Return confirmation.
 
 5. **Book page** (`app/(dashboard)/book/[mentorId]/page.tsx`) — slot picker that calls `createBooking()`.
 
 6. **Vercel + env config** — set up all env vars in `vercel.json` and `.env.local.example`:
-   - `ZOOM_API_KEY`, `ZOOM_API_SECRET`
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
    - `ANTHROPIC_API_KEY`
    - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
@@ -195,17 +197,17 @@ npx playwright test tests/e2e/booking.spec.ts  # single file
 
 **Test each integration in isolation:**
 
-Zoom:
+Google Meet:
 ```bash
 # Create a test meeting manually via the client
-npx tsx scripts/test-zoom.ts
+npx tsx scripts/test-meet.ts
 # Should print: { meetingId, joinUrl }
 ```
 
 Google Calendar:
 ```bash
 npx tsx scripts/test-calendar.ts
-# Should create an event visible in your Google Calendar
+# Should create an event visible in your Google Calendar with both mentee and mentor invited
 ```
 
 Claude AI:
