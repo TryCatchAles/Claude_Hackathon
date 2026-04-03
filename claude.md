@@ -1,6 +1,6 @@
 ## Product Overview
 
-This platform connects mentors and mentees to learn skills through booked sessions (Zoom calls).
+This platform connects mentors and mentees to learn skills through booked sessions (Google Meet calls).
 Users can act as both mentors and mentees.
 
 The system is built around:
@@ -34,7 +34,7 @@ The system is built around:
 * Sessions are created via:
 
   * Google Calendar
-  * Zoom meeting link
+  * Google Meet link
 * Session must be validated using:
 
   * attendance
@@ -125,7 +125,7 @@ Triggers:
 * Ratings only from real sessions
 * One rating per session
 * Repeat interactions may be down-weighted
-* Session validation required (Zoom data)
+* Session validation required (Google Meet attendance data)
 
 ---
 

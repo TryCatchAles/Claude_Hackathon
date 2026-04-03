@@ -51,13 +51,13 @@ Flow:
 2. Requests time slot
 3. Booking confirmed
 4. Calendar event created
-5. Zoom meeting generated
+5. Google Meet link generated
 
 ---
 
 ### 5. Session System
 
-* Sessions occur on Zoom
+* Sessions occur on Google Meet
 * System tracks:
 
   * attendance
@@ -170,7 +170,7 @@ User → Search → Match → Book → Session → Validate → Rate → Credit
 
 ### External APIs
 
-* Zoom API
+* Google Meet API
 * Google Calendar API
 
 ---
@@ -222,7 +222,7 @@ Include:
 * profile
 * search
 * booking
-* zoom integration
+* Google Meet integration
 * rating
 * credits
 * history

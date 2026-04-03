@@ -9,7 +9,7 @@
 | Database | Supabase Postgres + Row Level Security |
 | Auth | Supabase Auth (Email OTP + Phone) |
 | AI | Claude API (`src/lib/ai/claude.ts`) |
-| Integrations | Zoom API, Google Calendar API |
+| Integrations | Google Meet API, Google Calendar API |
 | Hosting | Vercel |
 | Testing | Playwright (E2E), Vitest (unit) |
 
@@ -100,10 +100,10 @@ npx supabase db push        # push schema changes
 ```
 Then test RLS with two different user JWTs to confirm isolation.
 
-**Manual flow** (after Person 2 has Zoom/Calendar wired up):
+**Manual flow** (after Person 2 has Google Meet/Calendar wired up):
 1. Sign up via OTP → verify phone
 2. Fill profile (skill hashtags, bio, school)
-3. Book a session (requires Person 2's Zoom/Calendar)
+3. Book a session (requires Person 2's Google Meet/Calendar work)
 4. Mark attendance → validate session
 5. Submit rating → check credit awarded
 6. File dispute → confirm credit paused
@@ -114,7 +114,7 @@ Then test RLS with two different user JWTs to confirm isolation.
 
 ### Responsibility
 
-All external service connections (Zoom, Google Calendar, Claude AI), deployment config, and the testing harness. Also owns the booking flow that bridges Person 1's session actions with real Zoom meetings and calendar events.
+All external service connections (Google Meet, Google Calendar, Claude AI), deployment config, and the testing harness. Also owns the booking flow that bridges Person 1's session actions with real Google Meet calls and calendar events.
 
 ---
 
@@ -123,15 +123,15 @@ All external service connections (Zoom, Google Calendar, Claude AI), deployment 
 ```
 src/
   lib/
-    zoom/
-      client.ts               ← Zoom API client: create meeting, get participants, validate overlap
+    meet/
+      client.ts               ← Google Meet API client: read conference records, participant sessions, validate overlap
     calendar/
-      client.ts               ← Google Calendar API: create event, check availability, send invite
+      client.ts               ← Google Calendar API: create event, check availability, create Meet link, send invite
     ai/
       claude.ts               ← Claude API: map search query → ranked mentor list
 
   actions/
-    bookings.ts               ← (NEW) createBooking(): calls Zoom + Calendar + writes to DB
+    bookings.ts               ← (NEW) createBooking(): calls Calendar + Meet + writes to DB
 
   app/
     (dashboard)/
@@ -151,13 +151,13 @@ tests/
 
 ### What to Build
 
-1. **Zoom client** (`lib/zoom/client.ts`):
-   - `createMeeting(hostId, startTime, duration)` → returns join URL + meeting ID
-   - `getMeetingParticipants(meetingId)` → used by session validation
-   - `validateOverlap(meetingId, minMinutes)` → returns `true` if attendance threshold met
+1. **Google Meet client** (`lib/meet/client.ts`):
+   - `getConferenceRecord(meetingCodeOrRecordId)` → returns conference start/end data
+   - `getParticipantSessions(conferenceRecordId)` → returns participant join/leave sessions
+   - `validateOverlap(conferenceRecordId, minMinutes)` → returns `true` if mentor/mentee overlap passes threshold
 
 2. **Google Calendar client** (`lib/calendar/client.ts`):
-   - `createEvent(mentorId, menteeId, startTime, zoomUrl)` → creates event, sends invites
+   - `createEvent(mentorId, menteeId, startTime)` → creates event, generates Meet link, sends invites
    - `getAvailableSlots(mentorId, date)` → returns free slots for booking UI
 
 3. **Claude AI client** (`lib/ai/claude.ts`):
@@ -166,16 +166,16 @@ tests/
 
 4. **Booking action** (`actions/bookings.ts`):
    - `createBooking(mentorId, menteeId, slot)`:
-     1. Call `createMeeting()` → get Zoom URL
-     2. Call `createEvent()` → add to both calendars
+     1. Call `createEvent()` → create Calendar event with Meet link
+     2. Store Meet meeting code / conference record reference
      3. Write booking + session row to DB
      4. Return confirmation
 
 5. **Book page** (`app/(dashboard)/book/[mentorId]/page.tsx`) — slot picker that calls `createBooking()`.
 
 6. **Vercel + env config** — set up all env vars in `vercel.json` and `.env.local.example`:
-   - `ZOOM_API_KEY`, `ZOOM_API_SECRET`
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
+   - `GOOGLE_MEET_WEBHOOK_SECRET` or related Meet subscription secrets if needed
    - `ANTHROPIC_API_KEY`
    - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
@@ -195,17 +195,17 @@ npx playwright test tests/e2e/booking.spec.ts  # single file
 
 **Test each integration in isolation:**
 
-Zoom:
+Google Meet:
 ```bash
-# Create a test meeting manually via the client
-npx tsx scripts/test-zoom.ts
-# Should print: { meetingId, joinUrl }
+# Read a test conference record / participant sessions via the client
+npx tsx scripts/test-meet.ts
+# Should print conference timing and participant session data
 ```
 
 Google Calendar:
 ```bash
 npx tsx scripts/test-calendar.ts
-# Should create an event visible in your Google Calendar
+# Should create an event visible in your Google Calendar with a Meet link
 ```
 
 Claude AI:

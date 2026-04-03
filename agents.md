@@ -86,8 +86,8 @@ Used for:
 
 ### 5. External Services
 
-* Zoom API → meetings + validation
-* Google Calendar API → scheduling
+* Google Meet API → attendance, participant sessions, validation
+* Google Calendar API → scheduling + Meet link creation
 
 ---
 
