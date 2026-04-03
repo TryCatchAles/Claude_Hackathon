@@ -43,7 +43,13 @@ export async function createSession(params: {
     return { data: null, error: 'Cannot create a session for a cancelled booking' }
   }
   // Verify schedule and duration match the booking exactly.
-  if (booking.scheduled_at !== params.scheduled_at) {
+  // Compare as numeric timestamps to avoid ISO string formatting differences
+  // (e.g. "Z" vs "+00:00", or missing milliseconds) causing false mismatches.
+  const bookingTime = new Date(booking.scheduled_at).getTime()
+  const paramTime = new Date(params.scheduled_at).getTime()
+  if (isNaN(bookingTime)) return { data: null, error: 'Booking has an invalid scheduled_at value' }
+  if (isNaN(paramTime)) return { data: null, error: 'Invalid scheduled_at value supplied' }
+  if (bookingTime !== paramTime) {
     return { data: null, error: 'Session scheduled_at does not match booking' }
   }
   if (booking.duration_minutes !== params.duration_minutes) {
