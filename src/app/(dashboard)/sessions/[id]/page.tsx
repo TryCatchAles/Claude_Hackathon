@@ -3,17 +3,18 @@ import { getSessionRating, submitRating } from '@/actions/ratings'
 import { fileDispute } from '@/actions/disputes'
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  pending:   'bg-yellow-50 text-yellow-700',
+const STATUS_STYLE: Record<string, string> = {
+  pending:   'bg-amber-50 text-amber-700',
   active:    'bg-blue-50 text-blue-700',
-  completed: 'bg-green-50 text-green-700',
+  completed: 'bg-emerald-50 text-emerald-700',
   disputed:  'bg-red-50 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-500',
+  cancelled: 'bg-zinc-100 text-zinc-400',
 }
 
 export default async function SessionDetailPage({ params }: Props) {
@@ -57,134 +58,168 @@ export default async function SessionDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-lg">
+      {/* Back */}
+      <Link
+        href="/sessions"
+        className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-900 mb-8 transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Back to sessions
+      </Link>
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Session Details</h1>
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[session.status] ?? 'bg-gray-100 text-gray-600'}`}>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Session</h1>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLE[session.status] ?? 'bg-zinc-100 text-zinc-500'}`}>
           {session.status}
         </span>
       </div>
 
-      {/* Session info */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4 space-y-2">
-        <Row label="Date" value={new Date(session.scheduled_at).toLocaleString()} />
-        <Row label="Duration" value={`${session.duration_minutes} minutes`} />
-        <Row label="Your role" value={isMentee ? 'Mentee' : 'Mentor'} />
-        {session.meet_meeting_code && (
-          <Row label="Meet code" value={session.meet_meeting_code} />
-        )}
-        {session.calendar_event_id && (
-          <Row label="Calendar event" value={session.calendar_event_id} />
-        )}
-        <Row label="Validated" value={session.validated ? `Yes — ${new Date(session.validated_at!).toLocaleString()}` : 'Not yet'} />
+      {/* Info card */}
+      <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100 mb-5">
+        {[
+          ['Date', new Date(session.scheduled_at).toLocaleString()],
+          ['Duration', `${session.duration_minutes} minutes`],
+          ['Your role', isMentee ? 'Mentee' : 'Mentor'],
+          ...(session.meet_meeting_code
+            ? [['Meet code', session.meet_meeting_code]]
+            : []),
+          ['Validated', session.validated
+            ? `Yes · ${new Date(session.validated_at!).toLocaleString()}`
+            : 'Not yet confirmed'],
+        ].map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between px-5 py-3.5">
+            <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{label}</span>
+            <span className="text-sm text-zinc-900 font-medium">{value}</span>
+          </div>
+        ))}
       </div>
 
+      {/* Meet link */}
+      {session.meet_meeting_code && (
+        <a
+          href={`https://meet.google.com/${session.meet_meeting_code}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-2 border border-zinc-200 bg-white rounded-xl px-5 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 transition-colors mb-5"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="1" y="4" width="9" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M10 6.5l4-2v7l-4-2V6.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
+          Join Google Meet
+        </a>
+      )}
+
       {/* Actions */}
-      <div className="space-y-3">
-
-        {/* Mentee: confirm session happened */}
+      <div className="space-y-4">
+        {/* Confirm session */}
         {isMentee && !session.validated && session.status !== 'cancelled' && (
-          <form action={handleValidate}>
-            <button
-              type="submit"
-              className="w-full bg-green-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-green-700 transition"
-            >
-              Confirm session happened
-            </button>
-            <p className="text-xs text-gray-400 mt-1 text-center">
-              This marks the session as completed and enables rating.
-            </p>
-          </form>
-        )}
-
-        {/* Mentee: rate mentor (only after validated, only once) */}
-        {isMentee && session.validated && !existingRating && (
-          <form action={handleRate} className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
-            <h2 className="font-semibold text-gray-900">Rate your mentor</h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Score (1–5)</label>
-              <select
-                name="score"
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          <div className="bg-white border border-zinc-200 rounded-xl p-5">
+            <p className="text-sm font-medium text-zinc-900 mb-1">Did the session happen?</p>
+            <p className="text-xs text-zinc-400 mb-4">Confirming enables you to rate your mentor and unlocks credit rewards.</p>
+            <form action={handleValidate}>
+              <button
+                type="submit"
+                className="w-full bg-zinc-900 text-white rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-zinc-700 active:scale-[0.98] transition-all"
               >
-                <option value="">Select a score</option>
-                <option value="5">5 — Excellent</option>
-                <option value="4">4 — Good</option>
-                <option value="3">3 — Average</option>
-                <option value="2">2 — Below average</option>
-                <option value="1">1 — Poor</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comment (optional)</label>
-              <textarea
-                name="comment"
-                rows={2}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 transition"
-            >
-              Submit rating
-            </button>
-          </form>
+                Yes, confirm session
+              </button>
+            </form>
+          </div>
         )}
 
-        {/* Show submitted rating */}
+        {/* Rate mentor */}
+        {isMentee && session.validated && !existingRating && (
+          <div className="bg-white border border-zinc-200 rounded-xl p-5">
+            <p className="text-sm font-semibold text-zinc-900 mb-4">Rate your mentor</p>
+            <form action={handleRate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Score</label>
+                <select
+                  name="score"
+                  required
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+                >
+                  <option value="">Select a score</option>
+                  <option value="5">5 — Excellent</option>
+                  <option value="4">4 — Good</option>
+                  <option value="3">3 — Average</option>
+                  <option value="2">2 — Below average</option>
+                  <option value="1">1 — Poor</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Comment <span className="normal-case text-zinc-400">(optional)</span></label>
+                <textarea
+                  name="comment"
+                  rows={2}
+                  placeholder="What did you learn? How was the experience?"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition resize-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-zinc-900 text-white rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-zinc-700 active:scale-[0.98] transition-all"
+              >
+                Submit rating
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Existing rating */}
         {existingRating && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-900 mb-2">Rating submitted</h2>
-            <p className="text-sm text-gray-700">Score: {existingRating.score}/5</p>
+          <div className="bg-white border border-zinc-200 rounded-xl p-5">
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">Rating submitted</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold text-zinc-900">{existingRating.score}</span>
+              <span className="text-sm text-zinc-400">/ 5</span>
+            </div>
             {existingRating.comment && (
-              <p className="text-sm text-gray-600 mt-1">&ldquo;{existingRating.comment}&rdquo;</p>
+              <p className="text-sm text-zinc-500 mt-2 italic">&ldquo;{existingRating.comment}&rdquo;</p>
             )}
           </div>
         )}
 
-        {/* File dispute */}
+        {/* Dispute */}
         {(isMentor || isMentee) && session.status !== 'cancelled' && session.status !== 'disputed' && (
-          <form action={handleDispute} className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
-            <h2 className="font-semibold text-gray-900">File a dispute</h2>
-            <textarea
-              name="reason"
-              required
-              rows={2}
-              placeholder="Describe the issue..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
-            <button
-              type="submit"
-              className="w-full bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition"
-            >
-              Submit dispute
-            </button>
-          </form>
+          <div className="bg-white border border-zinc-200 rounded-xl p-5">
+            <p className="text-sm font-semibold text-zinc-900 mb-1">File a dispute</p>
+            <p className="text-xs text-zinc-400 mb-4">Use this if the session didn&apos;t happen as expected. Credits will be paused pending review.</p>
+            <form action={handleDispute} className="space-y-3">
+              <textarea
+                name="reason"
+                required
+                rows={2}
+                placeholder="Describe the issue…"
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition resize-none"
+              />
+              <button
+                type="submit"
+                className="w-full border border-zinc-300 text-zinc-600 rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-zinc-50 transition-colors"
+              >
+                Submit dispute
+              </button>
+            </form>
+          </div>
         )}
 
-        {/* Cancel session */}
+        {/* Cancel */}
         {session.status !== 'cancelled' && session.status !== 'completed' && (
           <form action={handleCancel}>
             <button
               type="submit"
-              className="w-full border border-gray-300 text-gray-600 rounded-lg px-4 py-2 text-sm hover:bg-gray-50 transition"
+              className="w-full text-xs text-zinc-400 hover:text-red-600 transition-colors py-2"
             >
-              Cancel session
+              Cancel this session
             </button>
           </form>
         )}
       </div>
-    </div>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span className="text-gray-500">{label}</span>
-      <span className="text-gray-900 font-medium">{value}</span>
     </div>
   )
 }

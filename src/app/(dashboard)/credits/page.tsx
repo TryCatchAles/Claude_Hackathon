@@ -5,32 +5,52 @@ export default async function CreditsPage() {
   const { data: credits, error } = await getUserCredits()
 
   return (
-    <div className="max-w-xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Credits</h1>
-
-      <div className="bg-indigo-600 text-white rounded-xl p-6 mb-6">
-        <p className="text-sm opacity-80">Your reputation balance</p>
-        <p className="text-5xl font-bold mt-1">{balance ?? 0}</p>
-        <p className="text-sm opacity-70 mt-2">Credits are earned when mentees rate you 4 or 5 stars.</p>
+    <div className="max-w-lg">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mb-1">Credits</h1>
+        <p className="text-sm text-zinc-500">Reputation earned from high-rated sessions. Credits are never spent.</p>
       </div>
 
-      <h2 className="font-semibold text-gray-900 mb-3">Credit history</h2>
+      {/* Balance */}
+      <div className="bg-zinc-900 text-white rounded-xl p-7 mb-8 flex items-end justify-between">
+        <div>
+          <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">Balance</p>
+          <p className="text-6xl font-bold tracking-tight leading-none">{balance ?? 0}</p>
+          <p className="text-sm text-zinc-400 mt-3 leading-relaxed max-w-xs">
+            Earned when mentees rate you 4 or 5 stars after a validated session.
+          </p>
+        </div>
+        <div className="text-zinc-600 text-xs font-medium text-right leading-relaxed">
+          <p>Never deducted</p>
+          <p>Never bought</p>
+        </div>
+      </div>
 
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {/* History */}
+      <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-3">History</h2>
+
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">{error}</div>
+      )}
 
       {!credits || credits.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-          <p className="text-gray-500 text-sm">No credits earned yet. Conduct sessions and get rated to earn credits.</p>
+        <div className="bg-white border border-zinc-200 rounded-xl p-8 text-center">
+          <p className="text-sm text-zinc-500">No credits earned yet.</p>
+          <p className="text-xs text-zinc-400 mt-1">Conduct sessions and receive ratings to start earning.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
           {credits.map(credit => (
-            <div key={credit.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+            <div key={credit.id} className="flex items-center justify-between px-5 py-4">
               <div>
-                <p className="text-sm font-medium text-gray-900">+{credit.amount} credit</p>
-                <p className="text-xs text-gray-400">{new Date(credit.created_at).toLocaleDateString()}</p>
+                <p className="text-sm font-medium text-zinc-900">Credit earned</p>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {new Date(credit.created_at).toLocaleDateString('en-US', {
+                    month: 'long', day: 'numeric', year: 'numeric',
+                  })}
+                </p>
               </div>
-              <span className="text-green-600 font-bold">+{credit.amount}</span>
+              <span className="text-sm font-bold text-emerald-600">+{credit.amount}</span>
             </div>
           ))}
         </div>
