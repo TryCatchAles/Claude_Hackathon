@@ -1,51 +1,83 @@
-export type UserStatus = 'active' | 'flagged' | 'warning' | 'temp_ban' | 'tribunal' | 'permanent_ban'
+// ── Enums ─────────────────────────────────────────────────────────────────────
 
-export interface User {
-  id: string
-  email: string
-  phone?: string
+export type UserStatus =
+  | 'active'
+  | 'flagged'
+  | 'warning'
+  | 'temp_ban'
+  | 'tribunal'
+  | 'permanent_ban'
+
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+
+export type SessionStatus = 'pending' | 'active' | 'completed' | 'disputed' | 'cancelled'
+
+export type DisputeStatus = 'open' | 'resolved' | 'escalated'
+
+export type FlagSeverity = 'low' | 'medium' | 'high'
+
+// ── Table row types (mirror DB columns exactly) ───────────────────────────────
+
+export interface Profile {
+  id: string                  // mirrors auth.users(id)
+  display_name: string | null
+  bio: string | null
+  school: string | null
+  degree: string | null
+  hashtags: string[]
+  email_verified: boolean
+  phone_verified: boolean
+  edu_email: boolean
   status: UserStatus
   credits: number
   created_at: string
+  updated_at: string
 }
 
-export interface Profile {
+export interface Skill {
   id: string
-  user_id: string
-  bio?: string
-  school?: string
-  degree?: string
-  hashtags: string[]
-  is_verified: boolean
-}
-
-export interface Session {
-  id: string
-  mentor_id: string
-  mentee_id: string
-  meet_meeting_code: string
-  conference_record_id?: string
-  calendar_event_id: string
-  scheduled_at: string
-  duration_minutes: number
-  status: 'pending' | 'active' | 'completed' | 'disputed' | 'cancelled'
-  validated: boolean
+  name: string
+  category: string | null
+  created_at: string
 }
 
 export interface Booking {
   id: string
-  session_id: string
-  mentee_id: string
   mentor_id: string
+  mentee_id: string
+  scheduled_at: string
+  duration_minutes: number
+  status: BookingStatus
+  message: string | null
   created_at: string
+  updated_at: string
+}
+
+export interface Session {
+  id: string
+  booking_id: string
+  mentor_id: string
+  mentee_id: string
+  calendar_event_id: string | null
+  meet_meeting_code: string | null
+  conference_record_id: string | null
+  scheduled_at: string
+  duration_minutes: number
+  validated: boolean
+  validated_at: string | null
+  actual_duration_minutes: number | null
+  status: SessionStatus
+  created_at: string
+  updated_at: string
 }
 
 export interface Rating {
   id: string
   session_id: string
-  mentee_id: string
   mentor_id: string
-  score: number // 1-5
+  mentee_id: string
+  score: number             // 1–5
+  comment: string | null
   created_at: string
 }
 
@@ -63,12 +95,31 @@ export interface Dispute {
   session_id: string
   filed_by: string
   reason: string
-  status: 'open' | 'resolved' | 'escalated'
+  status: DisputeStatus
+  resolution: string | null
   created_at: string
+  updated_at: string
 }
 
-export interface Skill {
+export interface Flag {
   id: string
-  name: string
-  category?: string
+  user_id: string
+  reason: string
+  severity: FlagSeverity
+  resolved: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ── Action return shapes ───────────────────────────────────────────────────────
+
+export interface ActionResult<T = void> {
+  data: T | null
+  error: string | null
+}
+
+export interface MentorSearchResult {
+  profile: Profile
+  relevance_score: number
+  reason: string
 }
