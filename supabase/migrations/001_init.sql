@@ -255,6 +255,37 @@ create trigger on_credit_earned
   for each row execute function public.sync_credit_balance();
 
 -- ============================================================
+-- TRIGGER: block credit insert when session has an open dispute
+-- Runs BEFORE INSERT so no credit row is ever written.
+-- Raises an exception (P0001) that the application can catch.
+-- ============================================================
+create or replace function public.check_no_open_dispute_before_credit()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1
+    from public.disputes
+    where session_id = new.session_id
+      and status = 'open'
+  ) then
+    raise exception
+      'Cannot award credits for session "%": an open dispute exists.',
+      new.session_id
+      using errcode = 'P0001';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger enforce_no_credit_during_dispute
+  before insert on public.credits
+  for each row execute function public.check_no_open_dispute_before_credit();
+
+-- ============================================================
 -- TRIGGER: updated_at auto-maintenance
 -- ============================================================
 create or replace function public.set_updated_at()
@@ -375,7 +406,8 @@ create policy "ratings: only mentee for that session can insert"
       select 1 from public.sessions s
       where s.id = session_id
         and s.mentee_id = auth.uid()
-        and s.validated = true     -- session must be validated first
+        and s.mentor_id = mentor_id  -- rating must target the actual session mentor
+        and s.validated = true
     )
   );
 
