@@ -94,8 +94,8 @@ Users can add:
 
 ### 8. Verification
 
-* Email OTP required
-* Phone verification required
+* Google OAuth required
+* No email/password auth in the app
 * School/work email optional (boosts trust)
 
 ---
