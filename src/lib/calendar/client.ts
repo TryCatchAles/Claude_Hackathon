@@ -5,7 +5,7 @@ export async function createCalendarEvent(params: {
   startTime: string
   endTime: string
   attendeeEmails: string[]
-  zoomLink: string
+  meetLink: string
 }) {
   // TODO: implement Google Calendar API call
   throw new Error('Not implemented')

@@ -7,9 +7,8 @@
 | Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui |
 | Backend logic | Next.js Server Actions (`src/actions/`) |
 | Database | Supabase Postgres + Row Level Security |
-| Auth | Supabase Auth (Email OTP + Phone) |
+| Auth | Supabase Auth (Google OAuth only) |
 | AI | Claude API (`src/lib/ai/claude.ts`) |
-| Integrations | Google Meet API, Google Calendar API |
 | Integrations | Google Meet API, Google Calendar API |
 | Hosting | Vercel |
 | Testing | Playwright (E2E), Vitest (unit) |
@@ -41,7 +40,7 @@ src/
       server.ts               ← Supabase server client (for server actions)
 
   actions/
-    auth.ts                   ← Email OTP login, phone verify, session helpers
+    auth.ts                   ← Google OAuth session helpers, profile bootstrap, sign out
     sessions.ts               ← Create/confirm/validate sessions, attendance tracking
     ratings.ts                ← Submit rating, enforce once-per-session rule
     credits.ts                ← Award credits on high rating, read credit balance
@@ -51,8 +50,7 @@ src/
     layout.tsx                ← Root layout, global providers
     page.tsx                  ← Landing / home page
     (auth)/
-      login/page.tsx          ← OTP login screen
-      verify/page.tsx         ← Phone/email verify screen
+      login/page.tsx          ← Google sign-in screen
     (dashboard)/
       profile/page.tsx        ← View/edit profile (bio, skills, school, degree)
       search/page.tsx         ← Search mentors by skill/keyword (calls AI action)
@@ -69,12 +67,12 @@ src/
 
 1. **DB schema** (`001_init.sql`) — tables: `users`, `profiles`, `skills`, `sessions`, `bookings`, `ratings`, `credits`, `disputes`, `flags`. Add RLS so users can only read/write their own data.
 2. **Types** (`types/index.ts`) — TypeScript interfaces for every table row + action return shapes.
-3. **Auth actions** — `signInWithOTP()`, `verifyPhone()`, `getSession()`, `signOut()`.
+3. **Auth actions** — `signInWithGoogle()`, `getSession()`, `ensureProfile()`, `signOut()`.
 4. **Session actions** — `createSession()`, `confirmSession()`, `markAttendance()`, `validateSession()` (checks overlap duration before allowing rating).
 5. **Rating actions** — `submitRating()` (enforce: session must be validated, one rating max, mentee only).
 6. **Credits actions** — `awardCredits()` (triggered by high rating), `getUserCredits()`.
 7. **Disputes actions** — `fileDispute()`, `pauseCredit()`, `resolveDispute()`.
-8. **UI pages** — auth screens, profile editor, session history, rating form, credits view, disputes form.
+8. **UI pages** — Google sign-in screen, profile editor, session history, rating form, credits view, disputes form.
 
 ---
 
@@ -102,9 +100,9 @@ npx supabase db push        # push schema changes
 Then test RLS with two different user JWTs to confirm isolation.
 
 **Manual flow** (after Person 2 has Google Meet/Calendar wired up):
-1. Sign up via OTP → verify phone
+1. Sign in with Google
 2. Fill profile (skill hashtags, bio, school)
-3. Book a session (requires Person 2's Zoom/Calendar)
+3. Book a session (requires Person 2's Google Meet/Calendar work)
 4. Mark attendance → validate session
 5. Submit rating → check credit awarded
 6. File dispute → confirm credit paused
@@ -115,7 +113,7 @@ Then test RLS with two different user JWTs to confirm isolation.
 
 ### Responsibility
 
-All external service connections (Zoom, Google Calendar, Claude AI), deployment config, and the testing harness. Also owns the booking flow that bridges Person 1's session actions with real Zoom meetings and calendar events.
+All external service connections (Google Meet, Google Calendar, Claude AI), deployment config, and the testing harness. Also owns the booking flow that bridges Person 1's session actions with real Google Meet calls and calendar events.
 
 ---
 
@@ -124,15 +122,15 @@ All external service connections (Zoom, Google Calendar, Claude AI), deployment 
 ```
 src/
   lib/
-    zoom/
-      client.ts               ← Zoom API client: create meeting, get participants, validate overlap
+    meet/
+      client.ts               ← Google Meet API client: read conference records, participant sessions, validate overlap
     calendar/
-      client.ts               ← Google Calendar API: create event, check availability, send invite
+      client.ts               ← Google Calendar API: create event, check availability, create Meet link, send invite
     ai/
       claude.ts               ← Claude API: map search query → ranked mentor list (pass all mentor profiles directly in prompt)
 
   actions/
-    bookings.ts               ← (NEW) createBooking(): calls Zoom + Calendar + writes to DB
+    bookings.ts               ← (NEW) createBooking(): calls Calendar + Meet + writes to DB
 
   app/
     (dashboard)/
@@ -145,20 +143,20 @@ tests/
   e2e/
     booking.spec.ts           ← Full booking flow E2E
     search.spec.ts            ← Search returns mentors, no name search possible
-    auth.spec.ts              ← OTP login flow
+    auth.spec.ts              ← Google OAuth login flow
 ```
 
 ---
 
 ### What to Build
 
-1. **Zoom client** (`lib/zoom/client.ts`):
-   - `createMeeting(hostId, startTime, duration)` → returns join URL + meeting ID
-   - `getMeetingParticipants(meetingId)` → used by session validation
-   - `validateOverlap(meetingId, minMinutes)` → returns `true` if attendance threshold met
+1. **Google Meet client** (`lib/meet/client.ts`):
+   - `getConferenceRecord(meetingCodeOrRecordId)` → returns conference start/end data
+   - `getParticipantSessions(conferenceRecordId)` → used by session validation
+   - `validateOverlap(conferenceRecordId, minMinutes)` → returns `true` if attendance threshold met
 
 2. **Google Calendar client** (`lib/calendar/client.ts`):
-   - `createEvent(mentorId, menteeId, startTime, zoomUrl)` → creates event, sends invites
+   - `createEvent(mentorId, menteeId, startTime)` → creates event, generates Meet link, sends invites
    - `getAvailableSlots(mentorId, date)` → returns free slots for booking UI
 
 3. **Claude AI client** (`lib/ai/claude.ts`):
@@ -168,8 +166,8 @@ tests/
 
 4. **Booking action** (`actions/bookings.ts`):
    - `createBooking(mentorId, menteeId, slot)`:
-     1. Call `createMeeting()` → get Zoom URL
-     2. Call `createEvent()` → add to both calendars
+     1. Call `createEvent()` → create the Calendar event and Meet link
+     2. Store the Meet identifiers needed for validation
      3. Write booking + session row to DB
      4. Return confirmation
 
@@ -199,15 +197,15 @@ npx playwright test tests/e2e/booking.spec.ts  # single file
 
 Google Meet:
 ```bash
-# Create a test meeting manually via the client
-npx tsx scripts/test-zoom.ts
-# Should print: { meetingId, joinUrl }
+# Read a test conference record / participant sessions via the client
+npx tsx scripts/test-meet.ts
+# Should print conference timing and participant session data
 ```
 
 Google Calendar:
 ```bash
 npx tsx scripts/test-calendar.ts
-# Should create an event visible in your Google Calendar
+# Should create an event visible in your Google Calendar with a Meet link
 ```
 
 Claude AI:

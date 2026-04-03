@@ -19,8 +19,8 @@ Enable users to:
 
 ### 1. Authentication
 
-* Email OTP login
-* Phone verification
+* Google OAuth login
+* No email/password signup in the app
 * Optional school/work email verification
 
 ---

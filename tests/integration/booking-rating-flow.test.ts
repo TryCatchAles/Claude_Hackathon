@@ -13,7 +13,7 @@ describe.skipIf(!process.env.TEST_SUPABASE_URL)('booking → rating flow', () =>
     expect(true).toBe(true)
   })
 
-  it('session is validated after Zoom attendance check', async () => {
+  it('session is validated after Google Meet attendance check', async () => {
     // TODO: call validateSession, assert session.validated = true
     expect(true).toBe(true)
   })

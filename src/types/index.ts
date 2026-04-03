@@ -23,7 +23,8 @@ export interface Session {
   id: string
   mentor_id: string
   mentee_id: string
-  zoom_meeting_id: string
+  meet_meeting_code: string
+  conference_record_id?: string
   calendar_event_id: string
   scheduled_at: string
   duration_minutes: number
