@@ -1,0 +1,69 @@
+# supabase/config.toml
+# Local Supabase configuration for mentor-match.
+# Supabase CLI reads this file when you run `supabase start` or `supabase db reset`.
+# Do NOT commit real secrets here — use env() references for anything sensitive.
+
+project_id = "mentor-match"
+
+# ── API (PostgREST) ──────────────────────────────────────────────────────────
+[api]
+enabled     = true
+port        = 54321
+schemas     = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows    = 1000
+
+# ── Database ─────────────────────────────────────────────────────────────────
+[db]
+port         = 54322   # Postgres port — use this for psql connections
+shadow_port  = 54320
+major_version = 15
+
+# ── Studio (web UI) ──────────────────────────────────────────────────────────
+[studio]
+enabled = true
+port    = 54323        # Open http://localhost:54323 to browse tables and run SQL
+
+# ── Inbucket (local email catcher — not needed for Google OAuth, kept for OTP fallback) ──
+[inbucket]
+enabled   = true
+port      = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+# ── Storage ──────────────────────────────────────────────────────────────────
+[storage]
+enabled = true
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+[auth]
+enabled    = true
+site_url   = "http://localhost:3000"
+# After Google OAuth, users are redirected here
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry                    = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval  = 10
+enable_signup                 = true
+
+# Email auth is disabled — this project uses Google OAuth only.
+[auth.email]
+enable_signup         = false
+double_confirm_changes = false
+enable_confirmations  = false
+
+# Phone auth is disabled locally.
+[auth.sms]
+enable_signup = false
+
+# ── Google OAuth ─────────────────────────────────────────────────────────────
+# Requires a real Google Cloud project with OAuth credentials.
+# Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env.local.
+# In Google Cloud Console, add this to Authorized redirect URIs:
+#   http://localhost:54321/auth/v1/callback
+[auth.external.google]
+enabled      = true
+client_id    = "env(GOOGLE_CLIENT_ID)"
+secret       = "env(GOOGLE_CLIENT_SECRET)"
+# Skip nonce check — required for Google's PKCE flow
+skip_nonce_check = true
