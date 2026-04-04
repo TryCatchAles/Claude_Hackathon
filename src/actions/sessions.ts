@@ -101,12 +101,16 @@ export async function getUserSessions(): Promise<ActionResult<Session[]>> {
 
   const { data, error } = await supabase
     .from('sessions')
-    .select('*')
+    .select(`
+      *,
+      mentor_profile:profiles!sessions_mentor_id_fkey(display_name),
+      mentee_profile:profiles!sessions_mentee_id_fkey(display_name)
+    `)
     .or(`mentor_id.eq.${user.id},mentee_id.eq.${user.id}`)
     .order('scheduled_at', { ascending: false })
 
   if (error) return { data: null, error: error.message }
-  return { data, error: null }
+  return { data: data as any, error: null }
 }
 
 // Returns a single session by ID. RLS ensures only participants can read it.

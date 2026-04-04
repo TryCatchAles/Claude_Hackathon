@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { getUnreadCount } from '@/actions/notifications'
+import { NotificationBell } from '@/components/NotificationBell'
 
 async function handleSignOut() {
   'use server'
@@ -15,11 +17,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, credits')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, unreadCount] = await Promise.all([
+    supabase.from('profiles').select('display_name, credits').eq('id', user.id).single(),
+    getUnreadCount(),
+  ])
 
   const initial = profile?.display_name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? '?'
 
@@ -35,10 +36,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </Link>
             <nav className="hidden sm:flex items-center gap-1">
               {[
-                ['/search',   'Search'],
-                ['/sessions', 'Sessions'],
-                ['/credits',  'Credits'],
-                ['/disputes', 'Disputes'],
+                ['/search',        'Search'],
+                ['/sessions',      'Sessions'],
+                ['/credits',       'Credits'],
+                ['/disputes',      'Disputes'],
               ].map(([href, label]) => (
                 <Link
                   key={href}
@@ -51,8 +52,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </nav>
           </div>
 
-          {/* Right: credits + avatar + signout */}
+          {/* Right: bell + credits + avatar + signout */}
           <div className="flex items-center gap-4">
+            <NotificationBell initialCount={unreadCount} />
+
             {profile && (
               <span className="hidden sm:block text-xs text-zinc-400">
                 <span className="font-semibold text-zinc-900">{profile.credits}</span> credits

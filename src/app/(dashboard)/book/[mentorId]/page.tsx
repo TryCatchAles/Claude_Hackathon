@@ -1,17 +1,15 @@
 import { getProfile, getOwnProfile } from '@/actions/profile'
 import { createBooking } from '@/actions/bookings'
 import { getBookedStartTimes } from '@/lib/calendar/client'
-import { getUserEmail } from '@/lib/supabase/service'
-import { createServiceClient } from '@/lib/supabase/service'
+import { getUserEmail, createServiceClient } from '@/lib/supabase/service'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import BookingForm from './BookingForm'
 
 interface Props {
   params: Promise<{ mentorId: string }>
   searchParams: Promise<{ date?: string; error?: string }>
 }
-
-const SLOT_HOURS = [9, 10, 11, 13, 14, 15, 16, 17]
 
 function getTomorrow(): string {
   const d = new Date()
@@ -19,11 +17,6 @@ function getTomorrow(): string {
   return d.toISOString().split('T')[0]
 }
 
-function formatSlot(hour: number): string {
-  const suffix = hour < 12 ? 'AM' : 'PM'
-  const display = hour <= 12 ? hour : hour - 12
-  return `${display}:00 ${suffix}`
-}
 
 export default async function BookPage({ params, searchParams }: Props) {
   const { mentorId } = await params
@@ -46,8 +39,9 @@ export default async function BookPage({ params, searchParams }: Props) {
     .select('id')
     .eq('mentee_id', self.id)
     .eq('validated', true)
+    .eq('status', 'completed')
 
-  let hasUnratedSession = false
+  let unratedSessionId: string | null = null
   if (completedSessions && completedSessions.length > 0) {
     const completedIds = completedSessions.map(s => s.id)
     const { data: existingRatings } = await service
@@ -55,7 +49,7 @@ export default async function BookPage({ params, searchParams }: Props) {
       .select('session_id')
       .in('session_id', completedIds)
     const ratedIds = new Set((existingRatings ?? []).map(r => r.session_id))
-    hasUnratedSession = completedIds.some(id => !ratedIds.has(id))
+    unratedSessionId = completedIds.find(id => !ratedIds.has(id)) ?? null
   }
 
   const bookedStartTimes = await getBookedStartTimes(mentorId, selectedDate)
@@ -124,17 +118,17 @@ export default async function BookPage({ params, searchParams }: Props) {
       </Link>
 
       {/* Unrated session blocker */}
-      {hasUnratedSession && (
+      {unratedSessionId && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
           <p className="text-sm font-semibold text-amber-800 mb-1">Rate your last session first</p>
           <p className="text-xs text-amber-700 mb-3">
             You have a completed session that hasn&apos;t been rated yet. Please rate it before booking a new one.
           </p>
           <Link
-            href="/sessions"
+            href={`/sessions/${unratedSessionId}`}
             className="inline-block bg-amber-800 text-white rounded-lg px-4 py-2 text-xs font-semibold hover:bg-amber-900 transition-colors"
           >
-            Go to my sessions →
+            Rate that session →
           </Link>
         </div>
       )}
@@ -179,65 +173,16 @@ export default async function BookPage({ params, searchParams }: Props) {
         </div>
       </div>
 
-      {/* Booking form — single form handles both date change and booking */}
-      <div className={`bg-white border border-zinc-200 rounded-xl p-6 ${hasUnratedSession ? 'opacity-50 pointer-events-none' : ''}`}>
+      {/* Booking form */}
+      <div className={`bg-white border border-zinc-200 rounded-xl p-6 ${unratedSessionId ? 'opacity-50 pointer-events-none' : ''}`}>
         <h2 className="text-base font-semibold text-zinc-900 mb-5">Select a time slot</h2>
-
-        <form action={handleBook}>
-          {/* Date picker — part of the same form so the value is always current */}
-          <div className="mb-6">
-            <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Date</label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                name="date"
-                defaultValue={selectedDate}
-                min={getTomorrow()}
-                className="flex-1 bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
-              />
-              <button
-                type="submit"
-                className="bg-zinc-100 text-zinc-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-200 transition-colors"
-              >
-                Update
-              </button>
-            </div>
-          </div>
-
-          {/* Slots */}
-          <div className="mb-6">
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">{formattedDate}</p>
-            <div className="grid grid-cols-4 gap-2">
-              {SLOT_HOURS.map(hour => {
-                const booked = bookedHours.has(hour)
-                return (
-                  <label
-                    key={hour}
-                    className={`flex items-center justify-center rounded-lg border py-2.5 text-xs font-medium select-none transition-all
-                      ${booked
-                        ? 'border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed'
-                        : 'border-zinc-200 text-zinc-700 cursor-pointer hover:border-zinc-400 hover:bg-zinc-50 has-[:checked]:bg-zinc-900 has-[:checked]:border-zinc-900 has-[:checked]:text-white'
-                      }`}
-                  >
-                    <input type="radio" name="hour" value={hour} disabled={booked} className="sr-only" />
-                    {formatSlot(hour)}
-                  </label>
-                )
-              })}
-            </div>
-            <p className="text-xs text-zinc-400 mt-2.5">Times shown in UTC · 60-minute sessions</p>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-zinc-900 text-white rounded-lg px-5 py-3 text-sm font-semibold hover:bg-zinc-700 active:scale-[0.98] transition-all"
-          >
-            Confirm booking · 1 credit
-          </button>
-          <p className="text-xs text-zinc-400 text-center mt-3">
-            A Google Calendar invite with Meet link will be sent to both participants.
-          </p>
-        </form>
+        <BookingForm
+          selectedDate={selectedDate}
+          minDate={getTomorrow()}
+          bookedHours={[...bookedHours]}
+          action={handleBook}
+          formattedDate={formattedDate}
+        />
       </div>
     </div>
   )

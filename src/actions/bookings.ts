@@ -63,6 +63,7 @@ export async function createBooking(
     .select('id')
     .eq('mentee_id', user.id)
     .eq('validated', true)
+    .eq('status', 'completed')
 
   if (completedSessions && completedSessions.length > 0) {
     const completedIds = completedSessions.map(s => s.id)

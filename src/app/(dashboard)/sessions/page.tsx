@@ -72,15 +72,17 @@ export default async function SessionsPage() {
 
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-zinc-900">
-                      {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      <span className="text-zinc-400 font-normal ml-2">·</span>
-                      <span className="text-zinc-500 font-normal ml-2">{session.duration_minutes} min</span>
+                      {isMentor
+                        ? ((session as any).mentee_profile?.display_name ?? 'Unknown mentee')
+                        : ((session as any).mentor_profile?.display_name ?? 'Unknown mentor')
+                      }
                     </p>
                     <p className="text-xs text-zinc-400 mt-0.5">
-                      You are the <span className="font-medium text-zinc-600">{isMentor ? 'mentor' : 'mentee'}</span>
-                      {session.meet_meeting_code && (
-                        <span className="ml-2">· Meet: {session.meet_meeting_code}</span>
-                      )}
+                      {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      <span className="mx-1">·</span>
+                      {session.duration_minutes} min
+                      <span className="mx-1">·</span>
+                      <span className="font-medium text-zinc-500">{isMentor ? 'you are mentor' : 'you are mentee'}</span>
                     </p>
                   </div>
                 </div>

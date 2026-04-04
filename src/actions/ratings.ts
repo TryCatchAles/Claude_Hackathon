@@ -123,6 +123,10 @@ export async function submitRating(
         rating_id: rating.id,
         amount: creditsEarned,
       })
+      await admin.from('notifications').insert({
+        user_id: session.mentor_id,
+        message: `You earned ${creditsEarned} credit${creditsEarned > 1 ? 's' : ''} from cumulative star ratings!`,
+      })
     }
   }
 
