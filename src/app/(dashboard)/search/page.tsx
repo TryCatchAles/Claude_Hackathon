@@ -58,31 +58,27 @@ export default async function SearchPage({ searchParams }: Props) {
 
   let results: Profile[] = topMentors
   const reasons = new Map<string, string>()
-  let aiUsed = false
+  let searchUsed = false
 
   if (q?.trim() && allProfiles.length > 0) {
-    try {
-      const ranked = await matchMentors(
-        q,
-        allProfiles.map(p => ({
-          id: p.id,
-          display_name: p.display_name,
-          bio: p.bio,
-          hashtags: p.hashtags,
-          school: p.school,
-          credits: p.credits,
-        })),
-      )
-      if (ranked.length > 0) {
-        const profileMap = new Map(allProfiles.map(p => [p.id, p]))
-        results = ranked
-          .map(r => profileMap.get(r.mentor.id))
-          .filter((p): p is Profile => p != null)
-        for (const r of ranked) reasons.set(r.mentor.id, r.reason)
-        aiUsed = true
-      }
-    } catch {
-      // AI error — fall back silently to top mentors
+    const ranked = await matchMentors(
+      q,
+      allProfiles.map(p => ({
+        id: p.id,
+        display_name: p.display_name,
+        bio: p.bio,
+        hashtags: p.hashtags,
+        school: p.school,
+        credits: p.credits,
+      })),
+    )
+    if (ranked.length > 0) {
+      const profileMap = new Map(allProfiles.map(p => [p.id, p]))
+      results = ranked
+        .map(r => profileMap.get(r.mentor.id))
+        .filter((p): p is Profile => p != null)
+      for (const r of ranked) reasons.set(r.mentor.id, r.reason)
+      searchUsed = true
     }
   }
 
@@ -112,9 +108,9 @@ export default async function SearchPage({ searchParams }: Props) {
         </div>
         <p className="text-xs text-zinc-400 mt-2.5">
           {q
-            ? aiUsed
-              ? <>{results.length} AI-matched result{results.length !== 1 ? 's' : ''} for &ldquo;{q}&rdquo;</>
-              : <>Showing top mentors — no exact match for &ldquo;{q}&rdquo;</>
+            ? searchUsed
+              ? <>{results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{q}&rdquo;</>
+              : <>No mentors matched &ldquo;{q}&rdquo; — showing top mentors by reputation</>
             : <>Top {results.length} mentor{results.length !== 1 ? 's' : ''} by reputation</>
           }
         </p>
@@ -137,7 +133,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 <div className="flex items-start gap-4 min-w-0">
                   {/* Rank badge */}
                   <div className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                    {aiUsed ? (profile.display_name?.[0]?.toUpperCase() ?? '?') : `#${i + 1}`}
+                    {searchUsed ? (profile.display_name?.[0]?.toUpperCase() ?? '?') : `#${i + 1}`}
                   </div>
 
                   <div className="min-w-0">

@@ -18,8 +18,55 @@ export interface RankedMentor {
 }
 
 /**
+ * Keyword-based fallback: scores mentors by how many query words appear
+ * in their hashtags and bio. Returns only mentors with at least one match.
+ */
+function keywordMatch(query: string, mentors: MentorProfile[]): RankedMentor[] {
+  const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 1)
+  if (words.length === 0) return []
+
+  const scored = mentors.map(mentor => {
+    const searchText = [
+      ...mentor.hashtags,
+      mentor.bio ?? '',
+      mentor.school ?? '',
+    ].join(' ').toLowerCase()
+
+    const hashtagText = mentor.hashtags.join(' ').toLowerCase()
+
+    let score = 0
+    const matchedTags: string[] = []
+
+    for (const word of words) {
+      // Hashtag match scores higher than bio match
+      if (hashtagText.includes(word)) {
+        score += 2
+        const tag = mentor.hashtags.find(t => t.includes(word))
+        if (tag && !matchedTags.includes(tag)) matchedTags.push(tag)
+      } else if (searchText.includes(word)) {
+        score += 1
+      }
+    }
+
+    return { mentor, score, matchedTags }
+  }).filter(r => r.score > 0)
+
+  const maxScore = Math.max(...scored.map(r => r.score), 1)
+
+  return scored
+    .sort((a, b) => b.score - a.score || b.mentor.credits - a.mentor.credits)
+    .map(r => ({
+      mentor: r.mentor,
+      relevanceScore: Math.min(r.score / maxScore, 1),
+      reason: r.matchedTags.length > 0
+        ? `Matches your search on: ${r.matchedTags.slice(0, 3).join(', ')}`
+        : 'Relevant based on profile content',
+    }))
+}
+
+/**
  * Maps a natural language search query to relevant mentors.
- * Matches by skill/keyword only — name matching is explicitly forbidden.
+ * Tries Gemini AI first; falls back to keyword matching if AI is unavailable.
  */
 export async function matchMentors(
   query: string,
@@ -27,7 +74,9 @@ export async function matchMentors(
 ): Promise<RankedMentor[]> {
   if (mentors.length === 0) return []
 
-  const prompt = `You are a skill-based mentor matching system. You MUST match only by skills, keywords, bio, and expertise. You must NEVER match by name.
+  // Try Gemini AI first
+  try {
+    const prompt = `You are a skill-based mentor matching system. Match only by skills, keywords, bio, and expertise. NEVER match by name.
 
 Search query: "${query}"
 
@@ -44,30 +93,20 @@ ${JSON.stringify(
   2
 )}
 
-Return a JSON array of matched mentors ranked by relevance. Each item must have:
-{
-  "mentorId": "<id>",
-  "relevanceScore": <number between 0.0 and 1.0>,
-  "reason": "<one sentence, skill-based reason only>"
-}
+Return a JSON array of matched mentors ranked by relevance. Each item:
+{ "mentorId": "<id>", "relevanceScore": <0.0-1.0>, "reason": "<one sentence, skill-based>" }
 
 Rules:
 - Only include mentors with relevanceScore > 0.1
 - Return [] if no mentors are relevant
-- Return ONLY the JSON array, no markdown, no explanation`
+- Return ONLY the JSON array, no markdown`
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-  const result = await model.generateContent(prompt)
-  const text = result.response.text().trim()
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const result = await model.generateContent(prompt)
+    const text = result.response.text().trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
 
-  // Strip markdown code fences if present
-  const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-
-  try {
-    const ranked: { mentorId: string; relevanceScore: number; reason: string }[] =
-      JSON.parse(cleaned)
-
-    return ranked
+    const ranked: { mentorId: string; relevanceScore: number; reason: string }[] = JSON.parse(text)
+    const matched = ranked
       .map((r) => ({
         mentor: mentors.find((m) => m.id === r.mentorId)!,
         relevanceScore: r.relevanceScore,
@@ -75,9 +114,14 @@ Rules:
       }))
       .filter((r) => r.mentor != null)
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
+
+    if (matched.length > 0) return matched
   } catch {
-    return []
+    // Gemini unavailable (rate limit, quota, etc.) — fall through to keyword matching
   }
+
+  // Keyword fallback — always works, no API calls
+  return keywordMatch(query, mentors)
 }
 
 export interface FraudCheckInput {

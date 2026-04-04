@@ -2,6 +2,7 @@ import { getProfile, getOwnProfile } from '@/actions/profile'
 import { createBooking } from '@/actions/bookings'
 import { getBookedStartTimes } from '@/lib/calendar/client'
 import { getUserEmail } from '@/lib/supabase/service'
+import { createServiceClient } from '@/lib/supabase/service'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 
@@ -38,14 +39,40 @@ export default async function BookPage({ params, searchParams }: Props) {
   if (!self) redirect('/login')
   if (mentor.id === self.id) redirect('/search')
 
+  // Check if the mentee has any completed+validated sessions they haven't rated yet
+  const service = createServiceClient()
+  const { data: completedSessions } = await service
+    .from('sessions')
+    .select('id')
+    .eq('mentee_id', self.id)
+    .eq('validated', true)
+
+  let hasUnratedSession = false
+  if (completedSessions && completedSessions.length > 0) {
+    const completedIds = completedSessions.map(s => s.id)
+    const { data: existingRatings } = await service
+      .from('ratings')
+      .select('session_id')
+      .in('session_id', completedIds)
+    const ratedIds = new Set((existingRatings ?? []).map(r => r.session_id))
+    hasUnratedSession = completedIds.some(id => !ratedIds.has(id))
+  }
+
   const bookedStartTimes = await getBookedStartTimes(mentorId, selectedDate)
   const bookedHours = new Set(bookedStartTimes.map(iso => new Date(iso).getUTCHours()))
 
   async function handleBook(formData: FormData) {
     'use server'
     const hour = parseInt(formData.get('hour') as string, 10)
+    // Date comes directly from the form input — no hidden field needed
     const bookingDate = formData.get('date') as string
-    if (isNaN(hour) || !bookingDate) return
+
+    if (!bookingDate) return
+
+    // If no slot selected, treat as a date-change refresh
+    if (isNaN(hour)) {
+      redirect(`/book/${mentorId}?date=${bookingDate}`)
+    }
 
     const [mentorEmail, selfEmail] = await Promise.all([
       getUserEmail(mentorId),
@@ -96,10 +123,28 @@ export default async function BookPage({ params, searchParams }: Props) {
         Back to search
       </Link>
 
+      {/* Unrated session blocker */}
+      {hasUnratedSession && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
+          <p className="text-sm font-semibold text-amber-800 mb-1">Rate your last session first</p>
+          <p className="text-xs text-amber-700 mb-3">
+            You have a completed session that hasn&apos;t been rated yet. Please rate it before booking a new one.
+          </p>
+          <Link
+            href="/sessions"
+            className="inline-block bg-amber-800 text-white rounded-lg px-4 py-2 text-xs font-semibold hover:bg-amber-900 transition-colors"
+          >
+            Go to my sessions →
+          </Link>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-6">
-          {error === 'email_missing' ? 'Could not retrieve email addresses. Please try again.' : decodeURIComponent(error)}
+          {error === 'email_missing'
+            ? 'Could not retrieve email addresses. Please try again.'
+            : decodeURIComponent(error)}
         </div>
       )}
 
@@ -110,14 +155,9 @@ export default async function BookPage({ params, searchParams }: Props) {
             {mentor.display_name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <h1 className="text-lg font-bold text-zinc-900 tracking-tight">
-                {mentor.display_name ?? 'Anonymous'}
-              </h1>
-              {mentor.credits > 0 && (
-                <span className="text-xs text-zinc-400 font-medium">{mentor.credits} credits</span>
-              )}
-            </div>
+            <h1 className="text-lg font-bold text-zinc-900 tracking-tight">
+              {mentor.display_name ?? 'Anonymous'}
+            </h1>
             {mentor.school && (
               <p className="text-sm text-zinc-400 mt-0.5">
                 {mentor.school}{mentor.degree ? ` · ${mentor.degree}` : ''}
@@ -130,7 +170,7 @@ export default async function BookPage({ params, searchParams }: Props) {
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {mentor.hashtags.map(tag => (
                   <span key={tag} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-md font-medium">
-                    {tag}
+                    #{tag}
                   </span>
                 ))}
               </div>
@@ -139,65 +179,63 @@ export default async function BookPage({ params, searchParams }: Props) {
         </div>
       </div>
 
-      {/* Booking panel */}
-      <div className="bg-white border border-zinc-200 rounded-xl p-6">
+      {/* Booking form — single form handles both date change and booking */}
+      <div className={`bg-white border border-zinc-200 rounded-xl p-6 ${hasUnratedSession ? 'opacity-50 pointer-events-none' : ''}`}>
         <h2 className="text-base font-semibold text-zinc-900 mb-5">Select a time slot</h2>
 
-        {/* Date picker */}
-        <form method="GET" className="mb-6">
-          <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Date</label>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              name="date"
-              defaultValue={selectedDate}
-              min={getTomorrow()}
-              className="flex-1 bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
-            />
-            <button
-              type="submit"
-              className="bg-zinc-100 text-zinc-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-200 transition-colors"
-            >
-              Update
-            </button>
+        <form action={handleBook}>
+          {/* Date picker — part of the same form so the value is always current */}
+          <div className="mb-6">
+            <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Date</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                name="date"
+                defaultValue={selectedDate}
+                min={getTomorrow()}
+                className="flex-1 bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+              />
+              <button
+                type="submit"
+                className="bg-zinc-100 text-zinc-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-200 transition-colors"
+              >
+                Update
+              </button>
+            </div>
           </div>
-        </form>
 
-        {/* Slots */}
-        <div className="mb-6">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">{formattedDate}</p>
-          <div className="grid grid-cols-4 gap-2">
-            {SLOT_HOURS.map(hour => {
-              const booked = bookedHours.has(hour)
-              return (
-                <label
-                  key={hour}
-                  className={`flex items-center justify-center rounded-lg border py-2.5 text-xs font-medium cursor-pointer select-none transition-all
-                    ${booked
-                      ? 'border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed'
-                      : 'border-zinc-200 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 has-[:checked]:bg-zinc-900 has-[:checked]:border-zinc-900 has-[:checked]:text-white'
-                    }`}
-                >
-                  <input type="radio" name="hour" value={hour} disabled={booked} form="bookingForm" className="sr-only" />
-                  {formatSlot(hour)}
-                </label>
-              )
-            })}
+          {/* Slots */}
+          <div className="mb-6">
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">{formattedDate}</p>
+            <div className="grid grid-cols-4 gap-2">
+              {SLOT_HOURS.map(hour => {
+                const booked = bookedHours.has(hour)
+                return (
+                  <label
+                    key={hour}
+                    className={`flex items-center justify-center rounded-lg border py-2.5 text-xs font-medium select-none transition-all
+                      ${booked
+                        ? 'border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed'
+                        : 'border-zinc-200 text-zinc-700 cursor-pointer hover:border-zinc-400 hover:bg-zinc-50 has-[:checked]:bg-zinc-900 has-[:checked]:border-zinc-900 has-[:checked]:text-white'
+                      }`}
+                  >
+                    <input type="radio" name="hour" value={hour} disabled={booked} className="sr-only" />
+                    {formatSlot(hour)}
+                  </label>
+                )
+              })}
+            </div>
+            <p className="text-xs text-zinc-400 mt-2.5">Times shown in UTC · 60-minute sessions</p>
           </div>
-          <p className="text-xs text-zinc-400 mt-2.5">Times shown in UTC · 60-minute sessions</p>
-        </div>
 
-        {/* Submit */}
-        <form id="bookingForm" action={handleBook}>
-          <input type="hidden" name="date" value={selectedDate} />
           <button
             type="submit"
             className="w-full bg-zinc-900 text-white rounded-lg px-5 py-3 text-sm font-semibold hover:bg-zinc-700 active:scale-[0.98] transition-all"
           >
-            Confirm booking
+            Confirm booking · 1 credit
           </button>
           <p className="text-xs text-zinc-400 text-center mt-3">
-            A Google Meet link will be emailed to both participants.
+            A Google Calendar invite with Meet link will be sent to both participants.
           </p>
         </form>
       </div>

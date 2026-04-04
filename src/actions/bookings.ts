@@ -57,7 +57,27 @@ export async function createBooking(
   // 2. Prevent self-booking
   if (params.mentorId === params.menteeId) return { error: 'You cannot book a session with yourself' }
 
-  // 2a. Prevent duplicate bookings with the same mentor
+  // 2a. Block booking if mentee has any unrated completed sessions
+  const { data: completedSessions } = await service
+    .from('sessions')
+    .select('id')
+    .eq('mentee_id', user.id)
+    .eq('validated', true)
+
+  if (completedSessions && completedSessions.length > 0) {
+    const completedIds = completedSessions.map(s => s.id)
+    const { data: existingRatings } = await service
+      .from('ratings')
+      .select('session_id')
+      .in('session_id', completedIds)
+    const ratedIds = new Set((existingRatings ?? []).map(r => r.session_id))
+    const hasUnrated = completedIds.some(id => !ratedIds.has(id))
+    if (hasUnrated) {
+      return { error: 'Please rate your last session before booking a new one.' }
+    }
+  }
+
+  // 2b. Prevent duplicate bookings with the same mentor
   const { data: existing } = await service
     .from('bookings')
     .select('id')
