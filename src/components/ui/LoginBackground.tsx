@@ -1,35 +1,3 @@
-'use client'
-
-import { useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import type { Mesh } from 'three'
-
-function TorusKnot() {
-  const ref = useRef<Mesh>(null)
-
-  useFrame(({ clock }) => {
-    if (!ref.current) return
-    const t = clock.elapsedTime
-    ref.current.rotation.x = t * 0.12
-    ref.current.rotation.y = t * 0.18
-  })
-
-  return (
-    <mesh ref={ref} position={[1.2, 0, 0]}>
-      <torusKnotGeometry args={[1.3, 0.42, 200, 20]} />
-      <meshPhysicalMaterial
-        color="#7c3aed"
-        metalness={0.05}
-        roughness={0.08}
-        // @ts-ignore
-        iridescence={1}
-        // @ts-ignore
-        iridescenceIOR={1.8}
-      />
-    </mesh>
-  )
-}
-
 export function LoginBackground() {
   return (
     <div
@@ -37,20 +5,43 @@ export function LoginBackground() {
       style={{ zIndex: 0 }}
       aria-hidden="true"
     >
-      <Canvas
-        dpr={[1, 1.5]}
-        gl={{ antialias: true }}
-        camera={{ position: [0, 0, 5.5], fov: 52 }}
-      >
-        <color attach="background" args={['#0d0a1e']} />
+      {/* Base dark background */}
+      <div className="absolute inset-0" style={{ background: '#0d0a1e' }} />
 
-        <ambientLight intensity={0.2} />
-        <pointLight position={[-5, 4, 4]} color="#818cf8" intensity={15} />
-        <pointLight position={[5, -4, 4]} color="#06b6d4" intensity={15} />
-        <pointLight position={[0, 5, -3]} color="#d946ef" intensity={10} />
-
-        <TorusKnot />
-      </Canvas>
+      {/* Soft glowing orbs */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 600,
+          height: 600,
+          top: '-10%',
+          right: '-5%',
+          background: 'radial-gradient(circle, rgba(192,132,252,0.18) 0%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+      />
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 500,
+          height: 500,
+          bottom: '-10%',
+          right: '10%',
+          background: 'radial-gradient(circle, rgba(255,107,157,0.15) 0%, transparent 70%)',
+          filter: 'blur(50px)',
+        }}
+      />
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 400,
+          height: 400,
+          top: '30%',
+          right: '25%',
+          background: 'radial-gradient(circle, rgba(232,121,249,0.12) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }}
+      />
     </div>
   )
 }

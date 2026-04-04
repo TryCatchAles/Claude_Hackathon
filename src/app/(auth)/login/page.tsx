@@ -1,5 +1,6 @@
 import { signInWithGoogle } from '@/actions/auth'
 import { LoginBackground } from '@/components/ui/LoginBackground'
+import { BloomkinLogo } from '@/components/BloomkinLogo'
 
 export default function LoginPage() {
   return (
@@ -21,17 +22,12 @@ export default function LoginPage() {
         style={{ zIndex: 10 }}
       >
         <div className="w-full max-w-[420px]">
-          {/* Wordmark */}
-          <span className="text-xs font-bold tracking-[0.2em] uppercase text-violet-400">
-            MENTORMATCH
-          </span>
-
-          {/* Spacer */}
-          <div className="mb-10" />
+          {/* Logo */}
+          <BloomkinLogo size={80} showText={true} className="items-start mb-10" />
 
           {/* Headline */}
           <h1 className="text-5xl md:text-6xl font-bold text-white leading-[1.08] tracking-tight mb-5">
-            Learn from people who&apos;ve done it.
+            Grow with people who&apos;ve been there.
           </h1>
 
           {/* Subtitle */}
