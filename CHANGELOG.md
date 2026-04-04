@@ -6,6 +6,11 @@ All actions taken by Claude on this project are logged here.
 
 ## 2026-04-04
 
+### Login Background — Abstract Node Network
+- Replaced 3D lotus flower (Three.js / React Three Fiber) in `src/components/ui/LoginBackground.tsx` with a pure HTML5 Canvas animated node-network
+- 120 nodes of varying sizes drift slowly across the screen, connected by teal edges when within 160px
+- No labels, no names — fully abstract; dark `#0d1117` background with cyan/teal colour scheme
+
 ### Session Start
 - Read `claude.md`, `Work.md`, `agents.md`, `prd.md` to understand project scope and work split
 - Audited all source files and test files to assess completion status
