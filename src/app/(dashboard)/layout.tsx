@@ -27,12 +27,32 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen">
-      <header className="bg-white/70 backdrop-blur-md border-b border-white/30 sticky top-0 z-10">
+      {/* Floral ambient background — same component as login page */}
+      <LoginBackground />
+
+      {/* Radial vignette — matches login page's edge darkening */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: 1,
+          background:
+            'radial-gradient(ellipse 85% 70% at 50% 40%, transparent 25%, rgba(6,18,40,0.42) 62%, rgba(6,18,40,0.80) 100%)',
+        }}
+      />
+
+      <header
+        className="sticky top-0 z-20 backdrop-blur-md border-b border-white/10"
+        style={{ background: 'rgba(6,18,40,0.70)' }}
+      >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-14">
 
           {/* Left: logo + nav */}
           <div className="flex items-center gap-7">
-            <Link href="/search" className="text-sm font-semibold text-zinc-900 tracking-tight">
+            <Link
+              href="/search"
+              className="bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent text-sm font-semibold tracking-tight"
+              style={{ fontFamily: 'Sterion, sans-serif' }}
+            >
               Bloomkin
             </Link>
             <nav className="hidden sm:flex items-center gap-1">
@@ -45,7 +65,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <Link
                   key={href}
                   href={href}
-                  className="text-sm text-white/70 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/8 transition-colors"
+                  className="text-sm text-white/55 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   {label}
                 </Link>
@@ -58,8 +78,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <NotificationBell initialCount={unreadCount} />
 
             {profile && (
-              <span className="hidden sm:block text-xs text-white/60">
-                <span className="font-semibold text-white">{profile.credits}</span> credits
+              <span className="hidden sm:block text-xs text-white/45">
+                <span className="font-semibold text-white/75">{profile.credits}</span> credits
               </span>
             )}
 
@@ -67,7 +87,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <div className="w-7 h-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-xs font-semibold">
                 {initial}
               </div>
-              <span className="hidden sm:block text-sm text-white/75 group-hover:text-white transition-colors">
+              <span className="hidden sm:block text-sm text-white/60 group-hover:text-white transition-colors">
                 {profile?.display_name ?? 'Profile'}
               </span>
             </Link>
@@ -75,7 +95,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <form action={handleSignOut}>
               <button
                 type="submit"
-                className="text-xs text-white/60 hover:text-white transition-colors py-1.5"
+                className="text-xs text-white/45 hover:text-white transition-colors py-1.5"
               >
                 Sign out
               </button>

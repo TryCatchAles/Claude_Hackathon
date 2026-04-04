@@ -85,14 +85,20 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-10">
+        <p
+          className="text-xs font-light tracking-widest uppercase mb-3 opacity-60"
+          style={{ color: 'rgba(210,180,255,0.9)', fontFamily: 'Sterion, sans-serif' }}
+        >
+          Mentor Discovery
+        </p>
         <h1
-          className="font-light text-white tracking-tight leading-none mb-3"
+          className="font-light tracking-tight leading-none mb-3 bg-gradient-to-r from-pink-300 via-purple-300 to-pink-300 bg-clip-text text-transparent"
           style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)' }}
         >
           Find a mentor
         </h1>
-        <p className="text-white/70 font-light text-sm leading-relaxed">
+        <p className="text-white/45 font-light text-sm leading-relaxed">
           Search by skill or keyword. Results are ranked by expertise — no name search.
         </p>
       </div>
@@ -104,17 +110,22 @@ export default async function SearchPage({ searchParams }: Props) {
             name="q"
             defaultValue={q ?? ''}
             placeholder="e.g. machine learning, React, AWS, design systems…"
-            className="flex-1 rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/25 transition"
-            style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)' }}
+            className="flex-1 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-purple-400/30 transition"
+            style={{
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 20px rgba(0,0,0,0.25)',
+            }}
           />
           <button
             type="submit"
-            className="bg-white text-zinc-900 rounded-2xl px-6 py-2.5 text-sm font-semibold hover:bg-violet-50 hover:shadow-[0_0_28px_rgba(160,100,220,0.45)] active:scale-[0.97] transition-all whitespace-nowrap"
+            className="bg-white text-zinc-900 rounded-2xl px-6 py-3 text-sm font-semibold hover:bg-violet-50 hover:shadow-[0_0_28px_rgba(160,100,220,0.5)] active:scale-[0.97] transition-all whitespace-nowrap"
           >
             Search
           </button>
         </div>
-        <p className="text-xs text-white/70 mt-2.5">
+        <p className="text-xs text-white/40 mt-2.5">
           {q
             ? searchUsed
               ? <>{results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{q}&rdquo;</>

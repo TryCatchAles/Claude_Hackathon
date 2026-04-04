@@ -4,6 +4,35 @@ All actions taken by Claude on this project are logged here.
 
 ---
 
+## 2026-04-04 (session detail page redesign)
+
+### Session Detail Page — Dark premium alignment
+- `src/app/(dashboard)/sessions/[id]/page.tsx`: Added `import type React` for `React.CSSProperties`; extracted `glassSurface` and `glassInput` typed style constants; replaced light-pastel `STATUS_STYLE` with dark glass pill equivalents + added `STATUS_BG` map; back link changed to `text-white/40 hover:text-white`; h1 changed to pink-purple gradient; all `bg-white border border-zinc-200` action/info cards replaced with `glassSurface`; info card row labels → `text-white/40`, values → `text-white`, dividers → `rgba(255,255,255,0.08)`; dispute banner converted to dark tinted glass per-state (emerald/purple/amber at 10% opacity); dispute resolution border → `rgba(255,255,255,0.10)`; dispute text → `text-white/70`, outcome label → `text-white/45`, resolution quote → `text-white/55`; all form inputs (select, textarea) → `glassInput` with `text-white placeholder:text-white/25 focus:ring-purple-400/30`; select options given dark background fallback; all `bg-zinc-900` action buttons replaced with white CTA style matching search/sessions; dispute submit button → ghost dark glass; cancel button → `text-white/30 hover:text-red-400`; Meet CTA → white button with violet hover glow; rating display card → `text-white`, `text-white/35`, `text-white/50`
+
+---
+
+## 2026-04-04 (credits page redesign)
+
+### Credits Page — Dark premium alignment
+- `src/app/(dashboard)/credits/page.tsx`: Replaced `text-zinc-900` h1 with gradient h1 + lavender eyebrow + `text-white/45` subtitle matching search/sessions pattern; replaced flat `bg-zinc-900` balance card with dark glass surface (rgba(13,20,17,0.88) + backdrop blur + inset highlight); updated balance card inner labels from `text-zinc-400`/`text-zinc-600` to `text-white/40`/`text-white/25`; history `h2` updated to `text-white/35`; replaced `bg-white border border-zinc-200` history list with dark glass panel + `divide-white/8` row separators; all row text changed to `text-white` / `text-white/40` / `text-white/35`; `text-emerald-600` amount changed to `text-emerald-300`; `hover:text-zinc-700` link changed to `hover:text-white`; empty state and error banner converted to dark glass surfaces
+
+---
+
+## 2026-04-04 (sessions page redesign)
+
+### Sessions Page — Dark premium alignment
+- `src/app/(dashboard)/sessions/page.tsx`: Replaced all `text-zinc-*` headings with gradient h1 + lavender eyebrow + `text-white/45` subtitle matching search page pattern; replaced `bg-white border border-zinc-200` session cards with `.mentor-card` dark glass class; replaced light pastel status pills with dark glass translucent equivalents (amber/blue/emerald/red/zinc tinted at 10% opacity with matching border); replaced white empty-state box with dark glass surface; updated all in-card text to `text-white`, `text-white/45`, `text-white/40`, `text-white/55`; updated error banner to dark red glass; replaced `bg-zinc-900` CTA with white-button style matching search page; updated divider from `bg-zinc-100` to `bg-white/10`; updated chevron to `text-white/25 group-hover:text-white/55`
+
+---
+
+## 2026-04-04 (search page redesign)
+
+### Search Page — Visual alignment with login page
+- `src/app/(dashboard)/layout.tsx`: Added `<LoginBackground />` to JSX render (was imported but unused); added radial vignette overlay matching login page; replaced `bg-white/70` header with dark `rgba(6,18,40,0.70)` header; updated `Bloomkin` logo to pink-purple gradient using Sterion font; softened nav and utility text opacity
+- `src/app/(dashboard)/search/page.tsx`: Added lavender "Mentor Discovery" eyebrow label; replaced plain white h1 with pink-purple gradient text; reduced subtitle opacity to `white/45`; upgraded search input with blur + inner shadow glass treatment; tightened result count text
+
+---
+
 ## 2026-04-04
 
 ### Login Background — Abstract Node Network
