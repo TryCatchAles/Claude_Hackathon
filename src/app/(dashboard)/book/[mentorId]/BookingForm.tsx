@@ -22,68 +22,85 @@ export default function BookingForm({ selectedDate, minDate, bookedHours, action
   const formRef = useRef<HTMLFormElement>(null)
   const [isPending, startTransition] = useTransition()
   const [submitted, setSubmitted] = useState(false)
+  const [selectedHour, setSelectedHour] = useState<number | null>(null)
   const bookedSet = new Set(bookedHours)
 
   function handleDateChange() {
-    // Auto-submit to refresh available slots when the date changes
+    setSelectedHour(null)
     formRef.current?.requestSubmit()
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     const form = e.currentTarget
     const hour = new FormData(form).get('hour')
-    // If no slot selected, it's a date-change submit — don't mark as booking submitted
     if (!hour) return
     setSubmitted(true)
   }
 
   return (
     <form ref={formRef} action={action} onSubmit={handleSubmit}>
-      {/* Date picker — auto-submits on change */}
+      {/* Date picker */}
       <div className="mb-6">
-        <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Date</label>
+        <label className="block text-xs font-medium uppercase tracking-widest mb-2 text-white/40">Date</label>
         <input
           type="date"
           name="date"
           defaultValue={selectedDate}
           min={minDate}
           onChange={handleDateChange}
-          className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
+          className="w-full rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-400/40 transition"
+          style={{
+            background: 'rgba(255,255,255,0.07)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            backdropFilter: 'blur(12px)',
+            colorScheme: 'dark',
+          }}
         />
       </div>
 
       {/* Slots */}
       <div className="mb-6">
-        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">{formattedDate}</p>
+        <p className="text-xs font-medium uppercase tracking-widest mb-3 text-white/40">{formattedDate}</p>
         <div className="grid grid-cols-4 gap-2">
           {SLOT_HOURS.map(hour => {
             const booked = bookedSet.has(hour)
+            const selected = selectedHour === hour
             return (
               <label
                 key={hour}
-                className={`flex items-center justify-center rounded-lg border py-2.5 text-xs font-medium select-none transition-all
-                  ${booked
-                    ? 'border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed'
-                    : 'border-zinc-200 text-zinc-700 cursor-pointer hover:border-zinc-400 hover:bg-zinc-50 has-[:checked]:bg-zinc-900 has-[:checked]:border-zinc-900 has-[:checked]:text-white'
-                  }`}
+                onClick={() => !booked && setSelectedHour(hour)}
+                className={`flex items-center justify-center rounded-xl py-2.5 text-xs font-medium select-none transition-all
+                  ${booked ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer'}`}
+                style={{
+                  background: selected
+                    ? 'rgba(255,255,255,0.25)'
+                    : booked
+                    ? 'rgba(255,255,255,0.04)'
+                    : 'rgba(255,255,255,0.07)',
+                  border: selected
+                    ? '1px solid rgba(255,255,255,0.5)'
+                    : '1px solid rgba(255,255,255,0.12)',
+                }}
               >
-                <input type="radio" name="hour" value={hour} disabled={booked} className="sr-only" />
-                {formatSlot(hour)}
+                <input type="radio" name="hour" value={hour} disabled={booked} className="sr-only" readOnly checked={selected} />
+                <span className={selected ? 'text-white font-semibold' : 'text-white/60'}>{formatSlot(hour)}</span>
               </label>
             )
           })}
         </div>
-        <p className="text-xs text-zinc-400 mt-2.5">Times shown in UTC · 60-minute sessions</p>
+        <p className="text-xs text-white/30 mt-2.5">Times shown in UTC · 60-minute sessions</p>
       </div>
 
       <button
         type="submit"
         disabled={submitted || isPending}
-        className="w-full bg-zinc-900 text-white rounded-lg px-5 py-3 text-sm font-semibold hover:bg-zinc-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        suppressHydrationWarning
+        className="w-full rounded-xl px-5 py-3 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_28px_rgba(160,100,220,0.5)] active:scale-[0.98]"
+        style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: 'white' }}
       >
         {submitted || isPending ? 'Booking…' : 'Confirm booking · 1 credit'}
       </button>
-      <p className="text-xs text-zinc-400 text-center mt-3">
+      <p className="text-xs text-white/25 text-center mt-3">
         A Google Calendar invite with Meet link will be sent to both participants.
       </p>
     </form>

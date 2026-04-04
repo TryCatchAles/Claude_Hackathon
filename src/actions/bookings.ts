@@ -78,16 +78,16 @@ export async function createBooking(
     }
   }
 
-  // 2b. Prevent duplicate bookings with the same mentor
-  const { data: existing } = await service
-    .from('bookings')
+  // 2b. Prevent duplicate bookings — only block if there's a live (non-completed, non-cancelled) session
+  const { data: activeSession } = await service
+    .from('sessions')
     .select('id')
     .eq('mentor_id', params.mentorId)
     .eq('mentee_id', params.menteeId)
-    .not('status', 'eq', 'cancelled')
+    .not('status', 'in', '("completed","cancelled")')
     .maybeSingle()
 
-  if (existing) return { error: 'You already have an active booking with this mentor.' }
+  if (activeSession) return { error: 'You already have an active session with this mentor.' }
 
   // 2b. Check credits — do NOT deduct yet
   const { data: menteeProfile } = await supabase

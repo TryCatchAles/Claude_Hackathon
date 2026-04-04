@@ -110,6 +110,7 @@ export default async function SearchPage({ searchParams }: Props) {
             name="q"
             defaultValue={q ?? ''}
             placeholder="e.g. machine learning, React, AWS, design systems…"
+            suppressHydrationWarning
             className="flex-1 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-purple-400/30 transition"
             style={{
               background: 'rgba(255,255,255,0.07)',
@@ -120,6 +121,7 @@ export default async function SearchPage({ searchParams }: Props) {
           />
           <button
             type="submit"
+            suppressHydrationWarning
             className="bg-white text-zinc-900 rounded-2xl px-6 py-3 text-sm font-semibold hover:bg-violet-50 hover:shadow-[0_0_28px_rgba(160,100,220,0.5)] active:scale-[0.97] transition-all whitespace-nowrap"
           >
             Search

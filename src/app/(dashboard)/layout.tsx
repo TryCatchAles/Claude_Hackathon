@@ -95,6 +95,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <form action={handleSignOut}>
               <button
                 type="submit"
+                suppressHydrationWarning
                 className="text-xs text-white/45 hover:text-white transition-colors py-1.5"
               >
                 Sign out

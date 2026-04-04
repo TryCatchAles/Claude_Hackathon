@@ -17,6 +17,11 @@ function getTomorrow(): string {
   return d.toISOString().split('T')[0]
 }
 
+const glassCard = {
+  background: 'rgba(255,255,255,0.07)',
+  border: '1px solid rgba(255,255,255,0.13)',
+  backdropFilter: 'blur(20px)',
+}
 
 export default async function BookPage({ params, searchParams }: Props) {
   const { mentorId } = await params
@@ -32,7 +37,6 @@ export default async function BookPage({ params, searchParams }: Props) {
   if (!self) redirect('/login')
   if (mentor.id === self.id) redirect('/search')
 
-  // Check if the mentee has any completed+validated sessions they haven't rated yet
   const service = createServiceClient()
   const { data: completedSessions } = await service
     .from('sessions')
@@ -58,29 +62,21 @@ export default async function BookPage({ params, searchParams }: Props) {
   async function handleBook(formData: FormData) {
     'use server'
     const hour = parseInt(formData.get('hour') as string, 10)
-    // Date comes directly from the form input — no hidden field needed
     const bookingDate = formData.get('date') as string
-
     if (!bookingDate) return
-
-    // If no slot selected, treat as a date-change refresh
     if (isNaN(hour)) {
       redirect(`/book/${mentorId}?date=${bookingDate}`)
     }
-
     const [mentorEmail, selfEmail] = await Promise.all([
       getUserEmail(mentorId),
       getUserEmail(self!.id),
     ])
-
     if (!mentorEmail || !selfEmail) {
       redirect(`/book/${mentorId}?date=${bookingDate}&error=email_missing`)
     }
-
     const startTime = new Date(
       `${bookingDate}T${String(hour).padStart(2, '0')}:00:00Z`
     ).toISOString()
-
     const result = await createBooking({
       mentorId,
       menteeId: self!.id,
@@ -92,11 +88,9 @@ export default async function BookPage({ params, searchParams }: Props) {
       menteeName: self!.display_name ?? 'Mentee',
       skill: mentor!.hashtags[0] ?? 'general',
     })
-
     if ('error' in result) {
       redirect(`/book/${mentorId}?date=${bookingDate}&error=${encodeURIComponent(result.error ?? 'unknown')}`)
     }
-
     redirect(`/sessions/${result.sessionId}`)
   }
 
@@ -109,7 +103,7 @@ export default async function BookPage({ params, searchParams }: Props) {
       {/* Back */}
       <Link
         href="/search"
-        className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-900 mb-8 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white mb-8 transition-colors"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -119,14 +113,14 @@ export default async function BookPage({ params, searchParams }: Props) {
 
       {/* Unrated session blocker */}
       {unratedSessionId && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
-          <p className="text-sm font-semibold text-amber-800 mb-1">Rate your last session first</p>
-          <p className="text-xs text-amber-700 mb-3">
+        <div className="rounded-xl p-5 mb-6" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
+          <p className="text-sm font-semibold text-amber-300 mb-1">Rate your last session first</p>
+          <p className="text-xs text-amber-300/70 mb-3">
             You have a completed session that hasn&apos;t been rated yet. Please rate it before booking a new one.
           </p>
           <Link
             href={`/sessions/${unratedSessionId}`}
-            className="inline-block bg-amber-800 text-white rounded-lg px-4 py-2 text-xs font-semibold hover:bg-amber-900 transition-colors"
+            className="inline-block bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-lg px-4 py-2 text-xs font-semibold hover:bg-amber-400/30 transition-colors"
           >
             Rate that session →
           </Link>
@@ -135,7 +129,7 @@ export default async function BookPage({ params, searchParams }: Props) {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-6">
+        <div className="rounded-xl px-4 py-3 mb-6 text-sm text-red-300" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)' }}>
           {error === 'email_missing'
             ? 'Could not retrieve email addresses. Please try again.'
             : decodeURIComponent(error)}
@@ -143,27 +137,29 @@ export default async function BookPage({ params, searchParams }: Props) {
       )}
 
       {/* Mentor card */}
-      <div className="bg-white border border-zinc-200 rounded-xl p-6 mb-5">
+      <div className="rounded-2xl p-6 mb-4" style={glassCard}>
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center text-white font-semibold text-base flex-shrink-0">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.22)' }}>
             {mentor.display_name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-zinc-900 tracking-tight">
+            <h1 className="text-lg font-bold text-white tracking-tight">
               {mentor.display_name ?? 'Anonymous'}
             </h1>
             {mentor.school && (
-              <p className="text-sm text-zinc-400 mt-0.5">
+              <p className="text-sm text-white/50 mt-0.5">
                 {mentor.school}{mentor.degree ? ` · ${mentor.degree}` : ''}
               </p>
             )}
             {mentor.bio && (
-              <p className="text-sm text-zinc-500 mt-2 leading-relaxed line-clamp-3">{mentor.bio}</p>
+              <p className="text-sm text-white/70 mt-2 leading-relaxed line-clamp-3">{mentor.bio}</p>
             )}
             {mentor.hashtags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {mentor.hashtags.map(tag => (
-                  <span key={tag} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-md font-medium">
+                  <span key={tag} className="text-xs text-white/70 px-2 py-0.5 rounded-md font-medium"
+                    style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.14)' }}>
                     #{tag}
                   </span>
                 ))}
@@ -174,8 +170,8 @@ export default async function BookPage({ params, searchParams }: Props) {
       </div>
 
       {/* Booking form */}
-      <div className={`bg-white border border-zinc-200 rounded-xl p-6 ${unratedSessionId ? 'opacity-50 pointer-events-none' : ''}`}>
-        <h2 className="text-base font-semibold text-zinc-900 mb-5">Select a time slot</h2>
+      <div className={`rounded-2xl p-6 ${unratedSessionId ? 'opacity-50 pointer-events-none' : ''}`} style={glassCard}>
+        <h2 className="text-base font-semibold text-white mb-5">Select a time slot</h2>
         <BookingForm
           selectedDate={selectedDate}
           minDate={getTomorrow()}
