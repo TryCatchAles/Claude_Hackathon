@@ -8,6 +8,14 @@ export type UserStatus =
   | 'tribunal'
   | 'permanent_ban'
 
+export type TrustStatus =
+  | 'active'
+  | 'flagged'
+  | 'warning_issued'
+  | 'temporary_ban'
+  | 'tribunal_review'
+  | 'permanent_ban'
+
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
 
 export type SessionStatus = 'pending' | 'active' | 'completed' | 'disputed' | 'cancelled'
@@ -29,6 +37,7 @@ export interface Profile {
   phone_verified: boolean
   edu_email: boolean
   status: UserStatus
+  trust_status: TrustStatus
   credits: number
   created_at: string
   updated_at: string
@@ -78,6 +87,7 @@ export interface Rating {
   mentee_id: string
   score: number             // 1–5
   comment: string | null
+  fraud_flags: string[] | null
   created_at: string
 }
 

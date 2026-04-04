@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/server-admin'
+import { detectFraud } from '@/lib/ai/claude'
 import type { ActionResult, Rating } from '@/types'
 
 // Submits a rating from the mentee for a validated session.
@@ -35,12 +36,37 @@ export async function submitRating(
   if (!session.validated) return { data: null, error: 'Session must be validated before rating' }
   if (session.status !== 'completed') return { data: null, error: 'Session is not completed' }
 
-  // Enforce one rating per session.
-  const { data: existing, error: dupError } = await supabase
-    .from('ratings')
-    .select('id')
-    .eq('session_id', sessionId)
-    .single()
+  // Fetch duplicate check + fraud inputs in parallel, then run the fraud agent.
+  const [dupCheck, pairCount, recentCount] = await Promise.all([
+    // 1. One-rating-per-session guard
+    supabase
+      .from('ratings')
+      .select('id')
+      .eq('session_id', sessionId)
+      .single(),
+    // 2. Total sessions between this mentor-mentee pair (fraud signal: friend-farming)
+    supabase
+      .from('sessions')
+      .select('*', { count: 'exact', head: true })
+      .or(`and(mentor_id.eq.${session.mentor_id},mentee_id.eq.${user.id}),and(mentor_id.eq.${user.id},mentee_id.eq.${session.mentor_id})`),
+    // 3. Ratings this mentee submitted in the last 24 h (fraud signal: rating burst)
+    supabase
+      .from('ratings')
+      .select('*', { count: 'exact', head: true })
+      .eq('mentee_id', user.id)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+  ])
+
+  const { data: existing, error: dupError } = dupCheck
+
+  // Claude fraud-detection agent — runs after counts are known.
+  const fraud = await detectFraud({
+    menteeId: user.id,
+    mentorId: session.mentor_id,
+    score,
+    pastSessionCount: pairCount.count ?? 0,
+    menteeRatingsLast24h: recentCount.count ?? 0,
+  })
 
   if (dupError && dupError.code !== 'PGRST116') return { data: null, error: dupError.message }
   if (existing) return { data: null, error: 'This session has already been rated' }
@@ -55,11 +81,21 @@ export async function submitRating(
       mentee_id: user.id,
       score,
       comment: comment ?? null,
+      fraud_flags: fraud.flags.length > 0 ? fraud.flags : null,
     })
     .select()
     .single()
 
   if (ratingError) return { data: null, error: ratingError.message }
+
+  // Flag the mentee's account if the fraud agent flagged the submission.
+  if (fraud.recommendation === 'flag' || fraud.recommendation === 'review') {
+    await admin
+      .from('profiles')
+      .update({ trust_status: fraud.recommendation === 'review' ? 'tribunal_review' : 'flagged' })
+      .eq('id', user.id)
+    // Non-fatal — rating is saved; tribunal can assess asynchronously.
+  }
 
   // Award 1 credit to the mentor for ratings >= 4.
   if (score >= 4) {

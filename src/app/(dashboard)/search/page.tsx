@@ -1,4 +1,5 @@
 import { getAllProfiles } from '@/actions/profile'
+import { matchMentors } from '@/lib/ai/claude'
 import Link from 'next/link'
 import type { Profile } from '@/types'
 
@@ -6,24 +7,32 @@ interface Props {
   searchParams: Promise<{ q?: string }>
 }
 
-function filterProfiles(profiles: Profile[], query: string): Profile[] {
-  if (!query.trim()) return profiles
-  const terms = query.toLowerCase().split(/\s+/)
-  return profiles.filter(p => {
-    const haystack = [
-      ...(p.hashtags ?? []),
-      p.bio ?? '',
-      p.school ?? '',
-      p.degree ?? '',
-    ].join(' ').toLowerCase()
-    return terms.every(term => haystack.includes(term))
-  })
-}
-
 export default async function SearchPage({ searchParams }: Props) {
   const { q } = await searchParams
   const { data: profiles } = await getAllProfiles()
-  const results = filterProfiles(profiles ?? [], q ?? '')
+  const allProfiles = profiles ?? []
+
+  let results: Profile[] = allProfiles
+  const reasons = new Map<string, string>()
+
+  if (q?.trim() && allProfiles.length > 0) {
+    const ranked = await matchMentors(
+      q,
+      allProfiles.map(p => ({
+        id: p.id,
+        display_name: p.display_name,
+        bio: p.bio,
+        hashtags: p.hashtags,
+        school: p.school,
+        credits: p.credits,
+      })),
+    )
+    const profileMap = new Map(allProfiles.map(p => [p.id, p]))
+    results = ranked
+      .map(r => profileMap.get(r.mentor.id))
+      .filter((p): p is Profile => p != null)
+    for (const r of ranked) reasons.set(r.mentor.id, r.reason)
+  }
 
   return (
     <div>
@@ -83,6 +92,11 @@ export default async function SearchPage({ searchParams }: Props) {
                   {profile.school && (
                     <p className="text-xs text-zinc-400 mt-0.5">
                       {profile.school}{profile.degree ? ` · ${profile.degree}` : ''}
+                    </p>
+                  )}
+                  {reasons.get(profile.id) && (
+                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                      {reasons.get(profile.id)}
                     </p>
                   )}
                   {profile.bio && (

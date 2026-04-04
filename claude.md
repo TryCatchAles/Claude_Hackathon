@@ -153,3 +153,6 @@ Users can view:
 * Credits = reputation reward
 * Sessions = only valid interaction
 * System must resist abuse by design
+
+
+**LOG EVERYTHING YOU DO IN CHANGELOG.md FILE**
