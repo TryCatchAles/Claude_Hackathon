@@ -66,6 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   key={href}
                   href={href}
                   className="text-sm text-white/55 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                  style={{ fontFamily: 'BobogieGroovy, sans-serif' }}
                 >
                   {label}
                 </Link>
