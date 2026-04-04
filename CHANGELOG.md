@@ -73,3 +73,153 @@ All actions taken by Claude on this project are logged here.
 - Re-ran `npx tsc --noEmit` → 0 errors ✅
 - Re-ran `npx vitest run tests/unit/ tests/integration/` → 20/20 passing ✅
 - **Step 1 (TypeScript check) fully complete**
+
+---
+
+## 2026-04-04 (continuation) — Dispute resolution, trust state, credit lifecycle, UI
+
+### Gap 1: Dispute resolution flow (`src/actions/disputes.ts`)
+- Added `resolveDispute(disputeId, outcome, resolutionNote)` server action
+  - Accepts outcome: `'favor_mentor' | 'favor_mentee'`
+  - Fetches dispute + joined session via admin client
+  - Updates dispute to `status = 'resolved'`, sets `resolved_in_favor_of`, `resolution`, `resolved_at`
+  - Updates session status: `'completed'` on favor_mentor, `'cancelled'` on favor_mentee
+  - If favor_mentor: checks for qualifying rating (score >= 4), issues withheld credit atomically (DB trigger no longer blocks because dispute is resolved)
+  - Idempotent credit guard: checks for existing credit row before inserting
+  - Re-evaluates losing party's trust status via `checkAndUpdateTrustStatus()`
+  - Returns error if dispute is already resolved
+- Updated `fileDispute()` to:
+  - Mark session status as `'disputed'` immediately after dispute is filed (admin client, non-fatal)
+  - Re-evaluate the OTHER party's trust status via `checkAndUpdateTrustStatus()`
+
+### Gap 2: Credits pause / withheld behavior
+- DB trigger `enforce_no_credit_during_dispute` (001_init.sql) already blocked credit inserts while dispute is open
+- `resolveDispute()` now grants the withheld credit when favor_mentor by inserting AFTER dispute is resolved
+- When favor_mentee, no credit insert happens — credit remains permanently blocked
+- `submitRating()` attempts credit insert at rating time; if dispute already exists, DB trigger silently rejects it; credit is deferred to `resolveDispute()` if mentor wins
+- Rule preserved: credits never decrease, never spent; only ever added via rating → credit link
+
+### Gap 3: Trust state machine (`src/actions/trust.ts` — new file)
+- Created `checkAndUpdateTrustStatus(userId)` helper with documented thresholds:
+  - `>= 3` low ratings (score <= 2) in 30 days → `'flagged'`
+  - `>= 5` low ratings in 30 days → `'warning_issued'`
+  - `>= 8` low ratings in 30 days → `'temporary_ban'`
+  - Open dispute filed against user → at minimum `'flagged'`
+  - Fraud flags on recent ratings → `'flagged'`; fraud 'review' flag → `'tribunal_review'`
+- State transitions are one-way (no automatic downgrade); `permanent_ban` is never modified
+- Integrated into:
+  - `ratings.ts` `submitRating()` — calls trust check when score <= 2 is submitted against a mentor
+  - `disputes.ts` `fileDispute()` — calls trust check on the other party
+  - `disputes.ts` `resolveDispute()` — calls trust check on the losing party
+
+### Gap 3b: Migration `005_dispute_resolution.sql`
+- `disputes.resolved_in_favor_of text CHECK (IN ('favor_mentor', 'favor_mentee'))` — structured outcome column, idempotent `IF NOT EXISTS`
+- `disputes.resolved_at timestamptz` — audit timestamp
+- `profiles.low_rating_count_30d integer NOT NULL DEFAULT 0` — cached 30-day low-rating count for trust helper
+
+### Gap 4: UI improvements
+- **`src/app/(dashboard)/sessions/[id]/page.tsx`**:
+  - Imports `getUserDisputes` and `Dispute` type
+  - Fetches disputes for current user, filters to find the dispute for this session
+  - Renders dispute status banner (amber = open, emerald = resolved, purple = escalated)
+  - Shows resolution outcome (`'Resolved in favor of mentor'` / `'Resolved in favor of mentee'`) and admin note when resolved
+- **`src/app/(dashboard)/credits/page.tsx`**:
+  - `getUserCredits()` now joins `sessions(scheduled_at)` and `ratings(score)` via Supabase select
+  - Credit history rows show: star rating, session date (from join), and "View session" link
+  - Falls back to `created_at` if join fields are unavailable
+- **`src/app/(dashboard)/disputes/page.tsx`**:
+  - Dispute list shows session link (`/sessions/<id>`) per dispute
+  - Resolved disputes show outcome (color-coded), resolution date, admin note
+  - Updated escalated status badge to purple (was red, now consistent with session detail page)
+  - `OUTCOME_LABEL` and `OUTCOME_STYLE` maps added for readable, styled outcome display
+
+### Gap 5: Type updates (`src/types/index.ts`)
+- Added `DisputeResolution` type alias (`'favor_mentor' | 'favor_mentee'`)
+- Extended `Dispute` interface with `resolved_in_favor_of: DisputeResolution | null` and `resolved_at: string | null`
+- Extended `Profile` interface with `low_rating_count_30d: number`
+- Extended `Credit` interface with optional join fields `sessions?: { scheduled_at: string } | null` and `ratings?: { score: number } | null`
+
+### Gap 6: New tests
+- **`tests/unit/trust.test.ts`** (new, 13 tests):
+  - Low-rating threshold tests (active→flagged at 3, →warning_issued at 5, →temporary_ban at 8)
+  - Dispute trigger test (dispute against user → flagged)
+  - Fraud flag tests (flagged / tribunal_review)
+  - No-downgrade rule tests (permanent_ban unchanged, higher status preserved, multi-trigger picks highest)
+  - Dispute credit logic tests (favor_mentor + score>=4 grants credit, favor_mentee never grants, idempotent guard)
+- **`tests/integration/dispute-resolution-flow.test.ts`** (new, 6 tests):
+  - `fileDispute()`: empty reason guard, mentee can file, cancelled session blocked
+  - `resolveDispute()`: invalid outcome guard, blank note guard, favor_mentor grants credit (asserts credits table called), favor_mentee no credit (asserts credits table not called), already-resolved guard
+
+### Files changed (Gap 1–6 session)
+- `supabase/migrations/005_dispute_resolution.sql` — new migration (idempotent)
+- `supabase/migrations/006_admin_flag.sql` — new migration: adds `profiles.is_admin boolean NOT NULL DEFAULT false`; required by `resolveDispute()` admin check
+- `src/types/index.ts` — new types + extended interfaces
+- `src/actions/trust.ts` — new file: `checkAndUpdateTrustStatus()`
+- `src/actions/disputes.ts` — added `resolveDispute()`, updated `fileDispute()`, updated `getUserDisputes()` select
+- `src/actions/credits.ts` — `getUserCredits()` now joins sessions + ratings
+- `src/actions/ratings.ts` — low-score trigger calls `checkAndUpdateTrustStatus()`
+- `src/app/(dashboard)/sessions/[id]/page.tsx` — dispute status banner
+- `src/app/(dashboard)/credits/page.tsx` — rich credit history (date, score, session link)
+- `src/app/(dashboard)/disputes/page.tsx` — resolution outcome, session link, improved styling
+- `tests/unit/trust.test.ts` — new unit tests (13 tests)
+- `tests/integration/dispute-resolution-flow.test.ts` — new integration tests (6 tests)
+
+---
+
+## 2026-04-04 (compliance-gap fixes)
+
+### Fix 1 — CHANGELOG migration gap (006_admin_flag.sql)
+- `supabase/migrations/006_admin_flag.sql` was present in the repo but missing from CHANGELOG
+- Migration adds `profiles.is_admin boolean NOT NULL DEFAULT false`
+- `resolveDispute()` in `src/actions/disputes.ts` reads this column to enforce admin-only access
+- All six migrations now logged: 001_init, 002_session_rls, 003_fraud_columns, 004_missing_session_columns, 005_dispute_resolution, 006_admin_flag
+
+### Fix 2 — Server-side duplicate open-dispute guard (`src/actions/disputes.ts`)
+- `fileDispute()` now queries `disputes` for any existing row with `status IN ('open', 'escalated')` for the same `session_id` before inserting
+- Uses `.maybeSingle()` to avoid PGRST116 on zero rows
+- Returns `'An open dispute already exists for this session'` if one is found
+- Short comment documents the rule above the guard
+- The UI hiding the dispute form is now backed by a server-enforced invariant
+
+### Fix 3 — Disputed sessions cannot be cancelled (`src/actions/sessions.ts`)
+- `cancelSession()` now checks `session.status === 'disputed'` and returns an error
+- Error message: `'Cannot cancel a session that is under dispute — awaiting admin resolution'`
+- Prevents a participant from bypassing the tribunal/admin resolution model by unilaterally cancelling
+- Short comment explains the rationale inline
+
+### Fix 4 — Schema/type drift: `is_admin` added to `Profile` type (`src/types/index.ts`)
+- Added `is_admin: boolean` to the `Profile` interface with a comment pointing to migration 006
+- Type now mirrors `profiles` table schema exactly
+
+### Fix 5 — Verification: real test gaps documented + new test added
+- Added 7-item manual verification checklist as a comment block at the top of `tests/integration/dispute-resolution-flow.test.ts`
+- Checklist covers: admin column existence (SQL), duplicate dispute guard, disputed-session cancel block, DB trigger, admin-only resolution, credit grant, credit block
+- Added new test `'blocks a duplicate open dispute for the same session (server-side guard)'` to the integration suite
+- Updated `makeQueryMock` to include `'in'` and `'maybeSingle'` in its chainable methods
+- Updated existing `'allows mentee to file'` test to correctly sequence 3 `from()` calls (session lookup → duplicate check → insert)
+- Test total: 7 integration tests, 13 unit tests (trust), 16 unit tests (credits/ratings/sessions) = 36 tests total
+
+### Fix 6 — ESLint config missing (lint prompt on `npm run lint`)
+- `eslint` and `eslint-config-next` were already present in `devDependencies`
+- Created `.eslintrc.json` with `{"extends": "next/core-web-vitals"}` in project root
+- `npm run lint` (`next lint`) now has a config to load and will produce a real pass/fail instead of the setup prompt
+
+### Files changed (compliance-gap fixes)
+- `CHANGELOG.md` — this entry: added 006_admin_flag.sql to migration log
+- `src/types/index.ts` — added `is_admin: boolean` to `Profile` interface
+- `src/actions/disputes.ts` — server-side duplicate open-dispute guard in `fileDispute()`
+- `src/actions/sessions.ts` — block `cancelSession()` when session status is `'disputed'`
+- `tests/integration/dispute-resolution-flow.test.ts` — manual checklist, new duplicate-guard test, `maybeSingle`/`in` in mock chain, corrected from() sequencing
+- `.eslintrc.json` — new file: `{"extends": "next/core-web-vitals"}`
+
+### Verification results (run after agent completed)
+- `npx tsc --noEmit` → 0 errors ✅
+- `npm run lint` → ✔ No ESLint warnings or errors ✅
+- `npx vitest run tests/unit/ tests/integration/` → 45/45 tests passing ✅
+  - unit/credits.test.ts: 2 tests
+  - unit/ratings.test.ts: 3 tests
+  - unit/sessions.test.ts: 11 tests
+  - unit/trust.test.ts: 16 tests
+  - integration/dispute-resolution-flow.test.ts: 9 tests (includes new duplicate-guard test)
+  - integration/booking-rating-flow.test.ts: 4 tests
+

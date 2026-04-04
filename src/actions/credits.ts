@@ -5,6 +5,8 @@ import type { ActionResult, Credit } from '@/types'
 
 
 // Returns the logged-in user's credit history (append-only ledger).
+// Joins session (for scheduled_at) and rating (for score) so the UI can
+// display "1 credit for a 5-star rating on Jan 12".
 export async function getUserCredits(): Promise<ActionResult<Credit[]>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -12,7 +14,7 @@ export async function getUserCredits(): Promise<ActionResult<Credit[]>> {
 
   const { data, error } = await supabase
     .from('credits')
-    .select('*')
+    .select('*, sessions(scheduled_at), ratings(score)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

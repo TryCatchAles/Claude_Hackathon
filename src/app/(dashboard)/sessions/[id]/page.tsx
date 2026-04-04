@@ -1,9 +1,10 @@
 import { getSession, validateSession, cancelSession } from '@/actions/sessions'
 import { getSessionRating, submitRating } from '@/actions/ratings'
-import { fileDispute } from '@/actions/disputes'
+import { fileDispute, getUserDisputes } from '@/actions/disputes'
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import type { Dispute } from '@/types'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -29,6 +30,11 @@ export default async function SessionDetailPage({ params }: Props) {
   const isMentee = session.mentee_id === user.id
   const isMentor = session.mentor_id === user.id
   const { data: existingRating } = await getSessionRating(id)
+
+  // Fetch the dispute for this specific session (if any).
+  const { data: allDisputes } = await getUserDisputes()
+  const sessionDispute: Dispute | null =
+    allDisputes?.find((d) => d.session_id === id) ?? null
 
   async function handleValidate() {
     'use server'
@@ -97,6 +103,50 @@ export default async function SessionDetailPage({ params }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Dispute status banner — shown only when a dispute exists */}
+      {sessionDispute && (
+        <div className={`rounded-xl border px-5 py-4 mb-5 ${
+          sessionDispute.status === 'resolved'
+            ? 'bg-emerald-50 border-emerald-200'
+            : sessionDispute.status === 'escalated'
+            ? 'bg-purple-50 border-purple-200'
+            : 'bg-amber-50 border-amber-200'
+        }`}>
+          <div className="flex items-center justify-between mb-1">
+            <p className={`text-xs font-semibold uppercase tracking-wide ${
+              sessionDispute.status === 'resolved'
+                ? 'text-emerald-700'
+                : sessionDispute.status === 'escalated'
+                ? 'text-purple-700'
+                : 'text-amber-700'
+            }`}>
+              Dispute — {sessionDispute.status}
+            </p>
+            {sessionDispute.resolved_at && (
+              <span className="text-xs text-zinc-400">
+                Resolved {new Date(sessionDispute.resolved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-zinc-700 leading-relaxed">{sessionDispute.reason}</p>
+          {sessionDispute.status === 'resolved' && (
+            <div className="mt-3 pt-3 border-t border-zinc-200">
+              {sessionDispute.resolved_in_favor_of && (
+                <p className="text-xs font-medium text-zinc-500 mb-1">
+                  Outcome:{' '}
+                  <span className={`font-semibold ${sessionDispute.resolved_in_favor_of === 'favor_mentor' ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {sessionDispute.resolved_in_favor_of === 'favor_mentor' ? 'Resolved in favor of mentor' : 'Resolved in favor of mentee'}
+                  </span>
+                </p>
+              )}
+              {sessionDispute.resolution && (
+                <p className="text-sm text-zinc-600 italic">&ldquo;{sessionDispute.resolution}&rdquo;</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Meet link */}
       {session.meet_meeting_code && (
