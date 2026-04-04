@@ -25,14 +25,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const initial = profile?.display_name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-10">
+    <div className="min-h-screen">
+      <header className="bg-white/70 backdrop-blur-md border-b border-white/30 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-14">
 
           {/* Left: logo + nav */}
           <div className="flex items-center gap-7">
             <Link href="/search" className="text-sm font-semibold text-zinc-900 tracking-tight">
-              MentorMatch
+              Bloomkin
             </Link>
             <nav className="hidden sm:flex items-center gap-1">
               {[

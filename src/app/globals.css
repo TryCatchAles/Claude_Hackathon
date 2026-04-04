@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Sterion';
+  src: url('/fonts/Sterion.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sterion';
+  src: url('/fonts/SterionItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -13,8 +29,28 @@
   }
 
   body {
-    @apply bg-zinc-50 text-zinc-900;
+    @apply text-zinc-900 min-h-screen;
     font-feature-settings: 'cv11', 'ss01';
+    background-image: url('https://images.unsplash.com/photo-1439853949703-ff22b0f65154?auto=format&fit=crop&w=2560&q=80');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(10, 22, 40, 0.97) 0%,
+      rgba(13, 35, 64, 0.97) 40%,
+      rgba(10, 48, 80, 0.97) 70%,
+      rgba(6, 32, 56, 0.97) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
   }
 
   *:focus-visible {
