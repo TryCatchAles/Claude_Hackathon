@@ -33,7 +33,7 @@ export async function getProfile(userId: string): Promise<ActionResult<Profile>>
   return { data, error: null }
 }
 
-// Returns all active profiles — used by the search page.
+// Returns all active profiles that have a display name — used by the search page.
 export async function getAllProfiles(): Promise<ActionResult<Profile[]>> {
   const supabase = await createClient()
 
@@ -41,6 +41,7 @@ export async function getAllProfiles(): Promise<ActionResult<Profile[]>> {
     .from('profiles')
     .select('*')
     .eq('status', 'active')
+    .not('display_name', 'is', null)
     .order('credits', { ascending: false })
 
   if (error) return { data: null, error: error.message }

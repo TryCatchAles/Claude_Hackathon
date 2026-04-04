@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, Credit } from '@/types'
 
+
 // Returns the logged-in user's credit history (append-only ledger).
 export async function getUserCredits(): Promise<ActionResult<Credit[]>> {
   const supabase = await createClient()

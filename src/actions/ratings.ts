@@ -97,16 +97,32 @@ export async function submitRating(
     // Non-fatal — rating is saved; tribunal can assess asynchronously.
   }
 
-  // Award 1 credit to the mentor for ratings >= 4.
-  if (score >= 4) {
-    await admin.from('credits').insert({
-      user_id: session.mentor_id,
-      session_id: sessionId,
-      rating_id: rating.id,
-      amount: 1,
-    })
-    // Credit insert failure is non-fatal — rating is already saved.
-    // The DB trigger also enforces no credit during open disputes.
+  // Star-accumulation credit system:
+  // Add this score to the mentor's star_balance. Every 5 cumulative stars = 1 credit.
+  const { data: mentorProfile } = await admin
+    .from('profiles')
+    .select('star_balance')
+    .eq('id', session.mentor_id)
+    .single()
+
+  if (mentorProfile) {
+    const newBalance = (mentorProfile.star_balance ?? 0) + score
+    const creditsEarned = Math.floor(newBalance / 5)
+    const remainingStars = newBalance % 5
+
+    await admin
+      .from('profiles')
+      .update({ star_balance: remainingStars })
+      .eq('id', session.mentor_id)
+
+    if (creditsEarned > 0) {
+      await admin.from('credits').insert({
+        user_id: session.mentor_id,
+        session_id: sessionId,
+        rating_id: rating.id,
+        amount: creditsEarned,
+      })
+    }
   }
 
   return { data: rating, error: null }

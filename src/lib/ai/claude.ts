@@ -1,8 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 export interface MentorProfile {
   id: string
@@ -58,18 +56,16 @@ Rules:
 - Return [] if no mentors are relevant
 - Return ONLY the JSON array, no markdown, no explanation`
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+  const result = await model.generateContent(prompt)
+  const text = result.response.text().trim()
 
-  const text =
-    message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+  // Strip markdown code fences if present
+  const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
 
   try {
     const ranked: { mentorId: string; relevanceScore: number; reason: string }[] =
-      JSON.parse(text)
+      JSON.parse(cleaned)
 
     return ranked
       .map((r) => ({
@@ -127,16 +123,12 @@ Return ONLY a JSON object, no markdown:
 }`
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const text =
-      message.content[0].type === 'text' ? message.content[0].text.trim() : ''
-    const result: FraudCheckResult = JSON.parse(text)
-    return result
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const result = await model.generateContent(prompt)
+    const text = result.response.text().trim()
+    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    const fraudResult: FraudCheckResult = JSON.parse(cleaned)
+    return fraudResult
   } catch {
     // Fail open — never block a legitimate rating due to a transient AI error
     return { isSuspicious: false, flags: [], recommendation: 'allow' }
