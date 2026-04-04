@@ -27,26 +27,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen">
-      {/* Shared ambient flower network — same component as login, reused */}
-      <LoginBackground />
-
-      {/* Denser overlay than login so productivity content stays readable */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{ zIndex: 1, background: 'rgba(10, 15, 13, 0.58)' }}
-      />
-
-      {/* Dark glass header */}
-      <header
-        className="sticky top-0 border-b border-white/8 backdrop-blur-md"
-        style={{ zIndex: 20, background: 'rgba(10, 15, 13, 0.82)' }}
-      >
+      <header className="bg-white/70 backdrop-blur-md border-b border-white/30 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-14">
 
           {/* Left: logo + nav */}
           <div className="flex items-center gap-7">
-            <Link href="/search" className="text-sm font-semibold text-white tracking-tight">
-              MentorMatch
+            <Link href="/search" className="text-sm font-semibold text-zinc-900 tracking-tight">
+              Bloomkin
             </Link>
             <nav className="hidden sm:flex items-center gap-1">
               {[

@@ -142,7 +142,7 @@ export function LoginBackground() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: true })
     if (!ctx) return
 
     let w = window.innerWidth
@@ -191,8 +191,7 @@ export function LoginBackground() {
     window.addEventListener('click', onClick)
 
     const draw = () => {
-      ctx.fillStyle = '#0a0f0d'
-      ctx.fillRect(0, 0, w, h)
+      ctx.clearRect(0, 0, w, h)
 
       // update nodes
       for (const n of nodes) {
@@ -244,13 +243,13 @@ export function LoginBackground() {
           const dy   = a.y - b.y
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist < LINK_DIST) {
-            const alpha  = (1 - dist / LINK_DIST) * 0.28
+            const alpha  = (1 - dist / LINK_DIST) * 0.75
             const midHue = (a.hue + b.hue) / 2
             ctx.beginPath()
             ctx.moveTo(a.x, a.y)
             ctx.lineTo(b.x, b.y)
-            ctx.strokeStyle = `hsla(${midHue}, 80%, 65%, ${alpha})`
-            ctx.lineWidth   = 0.8
+            ctx.strokeStyle = `hsla(${midHue}, 40%, 95%, ${alpha})`
+            ctx.lineWidth   = 1.4
             ctx.stroke()
           }
         }

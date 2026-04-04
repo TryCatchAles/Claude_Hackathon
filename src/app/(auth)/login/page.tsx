@@ -1,6 +1,7 @@
 import { signInWithGoogle } from '@/actions/auth'
 import { LoginBackground } from '@/components/ui/LoginBackground'
 import { BloomkinLogo } from '@/components/BloomkinLogo'
+import { WaveTitle } from '@/components/WaveTitle'
 
 export default function LoginPage() {
   return (
@@ -13,21 +14,17 @@ export default function LoginPage() {
         style={{
           zIndex: 1,
           background:
-            'radial-gradient(ellipse 70% 60% at 50% 50%, transparent 20%, rgba(8,12,28,0.52) 70%, rgba(8,12,28,0.92) 100%)',
+            'radial-gradient(ellipse 70% 60% at 50% 50%, transparent 20%, rgba(6,18,40,0.52) 70%, rgba(6,18,40,0.92) 100%)',
         }}
       />
 
       {/* Top bar */}
       <div
-        className="fixed top-0 left-0 right-0 flex items-center justify-between px-8 py-6 pointer-events-none"
+        className="fixed top-0 left-0 right-0 flex items-center px-8 py-5 pointer-events-none"
         style={{ zIndex: 20 }}
       >
-        <span className="text-xs font-semibold tracking-[0.22em] uppercase text-white/50">
-          MentorMatch
-        </span>
-        <span className="text-xs text-white/30">
-          Google sign-in only · No passwords
-        </span>
+        <BloomkinLogo size={52} showText={false} className="flex-row gap-2 pointer-events-none" />
+        <span className="ml-3 bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent" style={{ fontFamily: 'Sterion, sans-serif', fontSize: '1.4rem' }}>Bloomkin</span>
       </div>
 
       {/* Main content — centered */}
@@ -36,23 +33,14 @@ export default function LoginPage() {
         style={{ zIndex: 10 }}
       >
         {/* Big hero title */}
-        <h1
-          className="font-light text-white tracking-tight leading-none mb-6 select-none"
-          style={{
-            fontSize: 'clamp(4.5rem, 11vw, 9.5rem)',
-            textShadow: '0 0 80px rgba(0,0,0,0.6)',
-          }}
-        >
-          MentorMatch
-        </h1>
+        <WaveTitle />
 
         {/* Subtitle */}
         <p
-          className="text-white/50 font-light mb-10 max-w-xs leading-relaxed"
-          style={{ fontSize: 'clamp(0.95rem, 1.5vw, 1.1rem)' }}
+          className="whitespace-nowrap mb-10 bg-gradient-to-r from-pink-300 via-purple-300 to-pink-300 bg-clip-text text-transparent opacity-80"
+          style={{ fontSize: 'clamp(0.85rem, 1.4vw, 1.05rem)', fontFamily: 'Sterion, sans-serif' }}
         >
-          Skill-based mentor discovery. Book sessions,
-          build real trust — no vanity metrics.
+          To help another bloom is to water your own roots.
         </p>
 
         {/* CTA */}
