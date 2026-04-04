@@ -10,7 +10,13 @@ import type { ActionResult } from '@/types'
 // triggered by a form/button — not from a GET handler.
 export async function signInWithGoogle(): Promise<never> {
   const headersList = await headers()
-  const origin = headersList.get('origin') ?? 'http://localhost:3000'
+  // In production (Vercel), the 'origin' header is always present.
+  // NEXT_PUBLIC_APP_URL is the production fallback (set in Vercel dashboard).
+  // 'http://localhost:3000' is only reached in local dev without the header.
+  const origin =
+    headersList.get('origin') ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    'http://localhost:3000'
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithOAuth({

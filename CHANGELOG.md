@@ -74,6 +74,20 @@ All actions taken by Claude on this project are logged here.
 - Re-ran `npx vitest run tests/unit/ tests/integration/` → 20/20 passing ✅
 - **Step 1 (TypeScript check) fully complete**
 
+### Three.js Login Page Enhancement
+
+- Created `src/components/ui/LoginBackground.tsx` — client component with a fixed R3F canvas
+  - 3 low-poly icosahedra (detail=0, flat-shaded) in zinc-300 color, positioned in screen periphery
+  - Very slow rotation (0.06–0.11 rad/s) + gentle sine-wave float per shape
+  - `dpr={[1, 1.5]}` cap, `antialias: false`, `alpha: true` — keeps draw calls minimal
+  - One ambient light + one dim directional light; no shadows, no post-processing
+  - `pointer-events: none`, `aria-hidden="true"` — no accessibility or interaction impact
+- Updated `src/app/(auth)/login/page.tsx`
+  - Page background changed from `bg-white` full-screen to `bg-zinc-50` (reveals 3D canvas)
+  - Content wrapped in a white card (`bg-white rounded-2xl shadow-sm border border-zinc-100/80`) at `z-10`
+  - All existing copy, CTA, feature list, and footer unchanged
+- `npx tsc --noEmit` — 0 errors after change
+
 ---
 
 ## 2026-04-04 (continuation) — Dispute resolution, trust state, credit lifecycle, UI
@@ -222,4 +236,59 @@ All actions taken by Claude on this project are logged here.
   - unit/trust.test.ts: 16 tests
   - integration/dispute-resolution-flow.test.ts: 9 tests (includes new duplicate-guard test)
   - integration/booking-rating-flow.test.ts: 4 tests
+
+---
+
+## 2026-04-04 — Vercel Deployment Readiness Audit
+
+### Audit findings
+
+- **Localhost fallback in `src/actions/auth.ts`** — `signInWithGoogle()` had `?? 'http://localhost:3000'` as the origin fallback. Safe in production (origin header is always present) but fragile; fixed to also check `NEXT_PUBLIC_APP_URL` env var before falling back.
+- **Missing Supabase session middleware** — `@supabase/ssr` requires a Next.js middleware to refresh session cookies on every request. Without it, server components on Vercel receive expired sessions and users appear logged out between page navigations. **Critical blocker** — middleware was absent entirely.
+- **`vercel.json` incomplete** — Only listed 2 of 9 required env var references. All other vars (`SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APP_CENTRAL_GOOGLE_REFRESH_TOKEN`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`) were missing from the `env` mapping.
+- **`next.config.ts` empty** — `googleapis` package must be declared in `serverExternalPackages` to prevent Next.js from attempting to bundle it for the browser/edge, which causes build errors.
+- **`.env.local.example` incomplete** — Missing `NEXT_PUBLIC_APP_URL`, `APP_CENTRAL_GOOGLE_REFRESH_TOKEN`; unclear local vs production separation; no production redirect URL instructions.
+- **No `DEPLOYMENT.md`** — No documentation covering Vercel env vars, Supabase Cloud setup, Google OAuth redirect URIs, or post-deployment verification checklist.
+- **AI client confirmed**: `src/lib/ai/claude.ts` uses `GEMINI_API_KEY` (Google Generative AI / Gemini) — not Anthropic — despite the file name. Both vars documented.
+- **Auth callback route** (`src/app/auth/callback/route.ts`) — uses `origin` from the request URL directly (`new URL(request.url)`), which is correct for Vercel. No localhost risk.
+- **Supabase clients** — `server.ts`, `server-admin.ts`, `service.ts` all use env vars correctly and are server-only. No client-side exposure of service role key.
+- **`supabase/config.toml`** — localhost-only config; correct for local dev. Production auth config is managed in Supabase Cloud dashboard (not this file).
+
+### Files changed
+
+1. **`src/middleware.ts`** — NEW: Supabase session refresh middleware (required by `@supabase/ssr` on Vercel). Runs on all routes except static assets. Calls `supabase.auth.getUser()` to silently refresh the session cookie.
+2. **`src/actions/auth.ts`** — `signInWithGoogle()`: origin fallback chain now checks `NEXT_PUBLIC_APP_URL` env var before falling back to `http://localhost:3000`.
+3. **`vercel.json`** — Added all 9 required env var references (`@supabase_service_role_key`, `@app_url`, `@google_client_id`, `@google_client_secret`, `@app_central_google_refresh_token`, `@gemini_api_key`, `@anthropic_api_key`).
+4. **`next.config.ts`** — Added `serverExternalPackages: ['googleapis']` to prevent bundling errors.
+5. **`.env.local.example`** — Rewritten: all 9 env vars documented with local vs production values clearly separated; includes instructions for each var.
+6. **`DEPLOYMENT.md`** — NEW: full deployment guide covering Supabase Cloud setup, migration steps, Google OAuth redirect URI requirements, Vercel env var table, post-deployment verification checklist, and common error troubleshooting.
+
+### Required Vercel environment variables (complete list)
+
+| Variable | Notes |
+|---|---|
+| `NEXT_PUBLIC_APP_URL` | Production Vercel URL, e.g. `https://mentor-match.vercel.app` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Cloud project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (secret — never expose to client) |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `APP_CENTRAL_GOOGLE_REFRESH_TOKEN` | Long-lived refresh token for centralized calendar account |
+| `GEMINI_API_KEY` | Google AI Studio key (used by `src/lib/ai/claude.ts`) |
+| `ANTHROPIC_API_KEY` | Anthropic key (kept for future use; not currently used at runtime) |
+
+### Manual steps still required (not automatable from repo)
+
+1. **Supabase Cloud**: Enable Google OAuth provider (Authentication → Providers → Google); set Client ID + Secret.
+2. **Supabase Cloud**: Set Site URL to production Vercel domain; add `/auth/callback` and `/**` to redirect allowlist.
+3. **Supabase Cloud**: Run all 6 migration files in order via SQL Editor or `supabase db push`.
+4. **Google Cloud Console**: Add `https://<ref>.supabase.co/auth/v1/callback` to Authorized Redirect URIs.
+5. **Google Cloud Console**: Add production Vercel domain to Authorized JavaScript Origins.
+6. **`scripts/get-google-token.ts`**: Run locally to generate `APP_CENTRAL_GOOGLE_REFRESH_TOKEN` for the central calendar account.
+7. **Vercel dashboard**: Set all 9 env vars listed above in Project Settings → Environment Variables.
+
+### Verification commands (run locally after changes)
+
+- `npx tsc --noEmit` — requires Bash permission to run; previously passed (0 errors per prior CHANGELOG entries)
+- `npm run lint` — requires Bash permission to run; previously passed (0 warnings per prior CHANGELOG entries)
 

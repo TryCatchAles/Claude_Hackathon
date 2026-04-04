@@ -1,71 +1,82 @@
 import { signInWithGoogle } from '@/actions/auth'
+import { LoginBackground } from '@/components/ui/LoginBackground'
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-md">
+    <>
+      <LoginBackground />
 
-        {/* Wordmark */}
-        <div className="mb-12 text-center">
-          <span className="text-2xl font-semibold tracking-tight text-zinc-900">MentorMatch</span>
-        </div>
+      {/* Gradient overlay */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: 1,
+          background:
+            'linear-gradient(105deg, rgba(13,10,30,0.97) 0%, rgba(13,10,30,0.90) 35%, rgba(13,10,30,0.45) 60%, transparent 80%)',
+        }}
+      />
 
-        {/* Hero copy */}
-        <div className="mb-10 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 leading-tight mb-3">
-            Learn from people<br />who&apos;ve done it.
+      <main
+        className="relative min-h-screen flex items-center px-8 md:px-16"
+        style={{ zIndex: 10 }}
+      >
+        <div className="w-full max-w-[420px]">
+          {/* Wordmark */}
+          <span className="text-xs font-bold tracking-[0.2em] uppercase text-violet-400">
+            MENTORMATCH
+          </span>
+
+          {/* Spacer */}
+          <div className="mb-10" />
+
+          {/* Headline */}
+          <h1 className="text-5xl md:text-6xl font-bold text-white leading-[1.08] tracking-tight mb-5">
+            Learn from people who&apos;ve done it.
           </h1>
-          <p className="text-zinc-500 text-base leading-relaxed">
-            Skill-based mentor discovery. Book sessions, earn reputation,
-            build trust — no vanity metrics.
+
+          {/* Subtitle */}
+          <p className="text-white/55 text-base leading-relaxed mb-10 max-w-[320px]">
+            Skill-based mentor discovery. Book sessions, build real trust — no vanity metrics.
+          </p>
+
+          {/* Google sign-in form */}
+          <form action={signInWithGoogle}>
+            <button
+              type="submit"
+              className="group w-full flex items-center justify-center gap-3 bg-white text-zinc-900 rounded-2xl px-7 py-4 text-sm font-bold tracking-wide hover:bg-violet-50 hover:shadow-[0_0_32px_rgba(139,92,246,0.5)] active:scale-[0.97] transition-all duration-200 cursor-pointer"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="mt-10 mb-8 h-px w-12 bg-white/15" />
+
+          {/* Feature list */}
+          <ul className="space-y-4">
+            {[
+              ['Find by skill', 'Search by what you want to learn — not by name.'],
+              ['Book a session', 'Schedule a 1-on-1 Google Meet instantly.'],
+              ['Rate & earn', 'Mentors earn credits from high ratings. No gaming.'],
+            ].map(([title, desc]) => (
+              <li key={title} className="flex items-start gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-semibold text-white">{title} </span>
+                  <span className="text-sm text-white/45">{desc}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Footer */}
+          <p className="text-xs text-white/25 mt-12">
+            Google sign-in only · No passwords · Ratings are permanent
           </p>
         </div>
-
-        {/* CTA */}
-        <form action={signInWithGoogle}>
-          <button
-            type="submit"
-            className="w-full flex items-center justify-center gap-3 bg-zinc-900 text-white rounded-lg px-6 py-3.5 text-sm font-semibold hover:bg-zinc-700 active:scale-[0.98] transition-all duration-150"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-        </form>
-
-        {/* Divider */}
-        <div className="my-8 flex items-center gap-4">
-          <div className="flex-1 h-px bg-zinc-100" />
-          <span className="text-xs text-zinc-400 font-medium">How it works</span>
-          <div className="flex-1 h-px bg-zinc-100" />
-        </div>
-
-        {/* Feature list */}
-        <ul className="space-y-3.5">
-          {[
-            ['Find by skill', 'Search by what you want to learn, not by name.'],
-            ['Book a session', 'Schedule a 1-on-1 Google Meet call instantly.'],
-            ['Rate & earn', 'Mentors earn credits from high ratings. No gaming.'],
-          ].map(([title, desc]) => (
-            <li key={title} className="flex items-start gap-3">
-              <div className="mt-0.5 w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                  <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-zinc-900">{title} </span>
-                <span className="text-sm text-zinc-500">{desc}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {/* Footer note */}
-        <p className="text-xs text-zinc-400 text-center mt-10">
-          Google sign-in only · No passwords · Ratings are permanent
-        </p>
-      </div>
-    </main>
+      </main>
+    </>
   )
 }
 
