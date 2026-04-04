@@ -1,4 +1,5 @@
 import { getUserCredits, getCreditBalance } from '@/actions/credits'
+import Link from 'next/link'
 
 export default async function CreditsPage() {
   const { data: balance } = await getCreditBalance()
@@ -40,19 +41,46 @@ export default async function CreditsPage() {
         </div>
       ) : (
         <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
-          {credits.map(credit => (
-            <div key={credit.id} className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-sm font-medium text-zinc-900">Credit earned</p>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  {new Date(credit.created_at).toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric',
-                  })}
-                </p>
+          {credits.map(credit => {
+            const sessionDate = credit.sessions?.scheduled_at
+              ? new Date(credit.sessions.scheduled_at).toLocaleDateString('en-US', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                })
+              : null
+            const ratingScore = credit.ratings?.score ?? null
+
+            return (
+              <div key={credit.id} className="flex items-center justify-between px-5 py-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-900">
+                    Credit earned
+                    {ratingScore !== null && (
+                      <span className="ml-2 text-xs font-normal text-zinc-400">
+                        · {ratingScore}-star rating
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {sessionDate ?? new Date(credit.created_at).toLocaleDateString('en-US', {
+                      month: 'long', day: 'numeric', year: 'numeric',
+                    })}
+                    {credit.session_id && (
+                      <>
+                        {' · '}
+                        <Link
+                          href={`/sessions/${credit.session_id}`}
+                          className="underline underline-offset-2 hover:text-zinc-700 transition-colors"
+                        >
+                          View session
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <span className="text-sm font-bold text-emerald-600">+{credit.amount}</span>
               </div>
-              <span className="text-sm font-bold text-emerald-600">+{credit.amount}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

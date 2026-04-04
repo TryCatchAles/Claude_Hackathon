@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/server-admin'
 import { detectFraud } from '@/lib/ai/claude'
+import { checkAndUpdateTrustStatus } from '@/actions/trust'
 import type { ActionResult, Rating } from '@/types'
 
 // Submits a rating from the mentee for a validated session.
@@ -107,6 +108,12 @@ export async function submitRating(
     })
     // Credit insert failure is non-fatal — rating is already saved.
     // The DB trigger also enforces no credit during open disputes.
+  }
+
+  // For low scores (<=2), re-evaluate the mentor's trust status.
+  // This feeds the repeated-low-rating escalation path in the trust state machine.
+  if (score <= 2) {
+    await checkAndUpdateTrustStatus(session.mentor_id)
   }
 
   return { data: rating, error: null }

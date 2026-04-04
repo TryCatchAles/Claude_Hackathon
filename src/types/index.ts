@@ -22,6 +22,10 @@ export type SessionStatus = 'pending' | 'active' | 'completed' | 'disputed' | 'c
 
 export type DisputeStatus = 'open' | 'resolved' | 'escalated'
 
+// Which side a dispute resolution favors.
+// NULL while the dispute is open; set atomically with status = 'resolved'.
+export type DisputeResolution = 'favor_mentor' | 'favor_mentee'
+
 export type FlagSeverity = 'low' | 'medium' | 'high'
 
 // ── Table row types (mirror DB columns exactly) ───────────────────────────────
@@ -39,6 +43,12 @@ export interface Profile {
   status: UserStatus
   trust_status: TrustStatus
   credits: number
+  // Cached count of low-score (<=2) ratings received in the last 30 days.
+  // Updated by checkAndUpdateTrustStatus(); used to drive trust escalation.
+  low_rating_count_30d: number
+  // Set to true (via Supabase dashboard) for admin users who can resolve disputes.
+  // Added by migration 006_admin_flag.sql.
+  is_admin: boolean
   created_at: string
   updated_at: string
 }
@@ -98,6 +108,10 @@ export interface Credit {
   rating_id: string
   amount: number
   created_at: string
+  // Optional joined fields — populated when the credits query includes select
+  // of related tables (e.g. from the credits page).
+  sessions?: { scheduled_at: string } | null
+  ratings?: { score: number } | null
 }
 
 export interface Dispute {
@@ -106,7 +120,11 @@ export interface Dispute {
   filed_by: string
   reason: string
   status: DisputeStatus
+  // Free-text admin note recorded at resolution time (e.g. "Session did not occur")
   resolution: string | null
+  // Structured outcome: which side the admin ruled in favor of
+  resolved_in_favor_of: DisputeResolution | null
+  resolved_at: string | null
   created_at: string
   updated_at: string
 }

@@ -4,7 +4,17 @@ import Link from 'next/link'
 const STATUS_STYLE: Record<string, string> = {
   open:      'bg-amber-50 text-amber-700',
   resolved:  'bg-emerald-50 text-emerald-700',
-  escalated: 'bg-red-50 text-red-700',
+  escalated: 'bg-purple-50 text-purple-700',
+}
+
+const OUTCOME_LABEL: Record<string, string> = {
+  favor_mentor: 'Resolved in favor of mentor',
+  favor_mentee: 'Resolved in favor of mentee',
+}
+
+const OUTCOME_STYLE: Record<string, string> = {
+  favor_mentor: 'text-emerald-700',
+  favor_mentee: 'text-red-600',
 }
 
 export default async function DisputesPage() {
@@ -19,7 +29,7 @@ export default async function DisputesPage() {
           <Link href="/sessions" className="underline underline-offset-2 hover:text-zinc-900 transition-colors">
             session page
           </Link>
-          . Open disputes pause credit awards until resolved.
+          . Open disputes pause credit awards until resolved by an admin.
         </p>
       </div>
 
@@ -34,27 +44,66 @@ export default async function DisputesPage() {
         </div>
       ) : (
         <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
-          {disputes.map(dispute => (
-            <div key={dispute.id} className="px-5 py-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-zinc-400">
-                  {new Date(dispute.created_at).toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric',
-                  })}
-                </p>
-                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLE[dispute.status] ?? 'bg-zinc-100 text-zinc-500'}`}>
-                  {dispute.status}
-                </span>
-              </div>
-              <p className="text-sm text-zinc-700 leading-relaxed">{dispute.reason}</p>
-              {dispute.resolution && (
-                <div className="mt-3 pt-3 border-t border-zinc-100">
-                  <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">Resolution</p>
-                  <p className="text-sm text-zinc-600">{dispute.resolution}</p>
+          {disputes.map(dispute => {
+            // sessions join comes back as an object with id, mentor_id, mentee_id
+            const sessionJoin = (dispute as unknown as { sessions?: { id?: string } }).sessions
+            const sessionId = sessionJoin?.id ?? dispute.session_id
+
+            return (
+              <div key={dispute.id} className="px-5 py-4">
+                {/* Header row: date + status badge */}
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-zinc-400">
+                    {new Date(dispute.created_at).toLocaleDateString('en-US', {
+                      month: 'long', day: 'numeric', year: 'numeric',
+                    })}
+                  </p>
+                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLE[dispute.status] ?? 'bg-zinc-100 text-zinc-500'}`}>
+                    {dispute.status}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Reason */}
+                <p className="text-sm text-zinc-700 leading-relaxed">{dispute.reason}</p>
+
+                {/* Session link */}
+                {sessionId && (
+                  <p className="text-xs text-zinc-400 mt-1.5">
+                    <Link
+                      href={`/sessions/${sessionId}`}
+                      className="underline underline-offset-2 hover:text-zinc-700 transition-colors"
+                    >
+                      View session →
+                    </Link>
+                  </p>
+                )}
+
+                {/* Resolution block — shown only when resolved */}
+                {dispute.status === 'resolved' && (
+                  <div className="mt-3 pt-3 border-t border-zinc-100 space-y-1.5">
+                    {dispute.resolved_in_favor_of && (
+                      <p className={`text-xs font-semibold ${OUTCOME_STYLE[dispute.resolved_in_favor_of] ?? 'text-zinc-700'}`}>
+                        {OUTCOME_LABEL[dispute.resolved_in_favor_of] ?? dispute.resolved_in_favor_of}
+                      </p>
+                    )}
+                    {dispute.resolved_at && (
+                      <p className="text-xs text-zinc-400">
+                        Resolved on {new Date(dispute.resolved_at).toLocaleDateString('en-US', {
+                          month: 'long', day: 'numeric', year: 'numeric',
+                        })}
+                      </p>
+                    )}
+                    {dispute.resolution && (
+                      <div className="pt-1">
+                        <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">Admin note</p>
+                        <p className="text-sm text-zinc-600 italic">&ldquo;{dispute.resolution}&rdquo;</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

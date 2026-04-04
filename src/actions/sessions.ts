@@ -188,6 +188,12 @@ export async function cancelSession(sessionId: string): Promise<ActionResult> {
   if (session.status === 'completed') {
     return { data: null, error: 'Cannot cancel a completed session' }
   }
+  // Disputed sessions must be resolved by an admin/tribunal, not cancelled
+  // unilaterally by a participant.  This prevents a party from bypassing the
+  // dispute-resolution flow by cancelling the session out from under it.
+  if (session.status === 'disputed') {
+    return { data: null, error: 'Cannot cancel a session that is under dispute — awaiting admin resolution' }
+  }
 
   const { error } = await supabase
     .from('sessions')
