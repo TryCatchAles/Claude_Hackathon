@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @font-face {
+  font-family: 'BobogieGroovy';
+  src: url('/fonts/BobogieGroovy.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Sterion';
   src: url('/fonts/Sterion.ttf') format('truetype');
   font-weight: normal;
