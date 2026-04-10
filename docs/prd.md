@@ -39,7 +39,7 @@ Users can:
 
 * Search by skill or keyword only
 * No name-based search
-* AI-powered mentor matching (Claude API)
+* AI-powered mentor matching (Gemini API)
 
 ---
 
@@ -164,7 +164,7 @@ User → Search → Match → Book → Session → Validate → Rate → Credit
 
 ### AI
 
-* Claude API
+* Gemini API
 
 ### External APIs
 

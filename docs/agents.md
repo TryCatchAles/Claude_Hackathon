@@ -75,7 +75,7 @@ Core tables:
 
 ### 4. AI Layer
 
-* Claude API
+* Gemini API
 
 Used for:
 
@@ -152,7 +152,7 @@ When adding a feature:
 
 * If unclear → ask for clarification
 * Never invent business rules
-* Always align with claude.md
+* Always align with CLAUDE.md
 * Prioritize security and trust
 
 ---

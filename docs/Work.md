@@ -4,11 +4,11 @@
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui |
+| Frontend | Next.js 15 (App Router), TypeScript, Tailwind, Three.js |
 | Backend logic | Next.js Server Actions (`src/actions/`) |
 | Database | Supabase Postgres + Row Level Security |
 | Auth | Supabase Auth (Google OAuth only) |
-| AI | Claude API (`src/lib/ai/claude.ts`) |
+| AI | Gemini API (`src/lib/ai/claude.ts`) |
 | Integrations | Google Calendar API (Centralized Account) |
 | Hosting | Vercel |
 | Testing | Playwright (E2E), Vitest (unit) |
@@ -127,7 +127,7 @@ src/
     calendar/
       client.ts               ← Google Calendar API: create event, check availability, create Meet link, send invite
     ai/
-      claude.ts               ← Claude API: map search query → ranked mentor list (pass all mentor profiles directly in prompt)
+      claude.ts               ← Gemini API: map search query → ranked mentor list (pass all mentor profiles directly in prompt)
 
   actions/
     bookings.ts               ← (NEW) createBooking(): calls Calendar + Meet + writes to DB
@@ -154,7 +154,7 @@ tests/
    - `createEvent(mentorId, menteeId, startTime)` → creates event, generates Meet link, sends invites
    - `getAvailableSlots(mentorId, date)` → returns free slots for booking UI
 
-2. **Claude AI client** (`lib/ai/claude.ts`):
+2. **Gemini AI client** (`lib/ai/claude.ts`):
    - `matchMentors(query, mentors[])` → sends query + the full array of mentor profiles to Claude, returns ranked list with relevance scores.
    - *Note on Scalability*: Keep it simple. Pass the entire array of users directly in the prompt. Do not set up complex vector databases right now.
    - Prompt must enforce: no name matching, skill/keyword only.
@@ -170,7 +170,7 @@ tests/
 5. **Vercel + env config** — set up all env vars in `vercel.json` and `.env.local.example`:
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
    - `APP_CENTRAL_GOOGLE_REFRESH_TOKEN` (for centralized calendar service)
-   - `GEMINI_API_KEY` (or `ANTHROPIC_API_KEY` if using hackathon credits)
+   - `GEMINI_API_KEY`
    - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
 6. **Playwright E2E tests** — full flows that run against local dev server.

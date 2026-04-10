@@ -4,6 +4,53 @@ All actions taken by Claude on this project are logged here.
 
 ---
 
+## 2026-04-10 (correct AI provider to Gemini across docs)
+
+### README.md, docs/Work.md, docs/agents.md, docs/prd.md
+- Replaced all references to "Claude API" with "Gemini API" for the mentor matching/search feature
+- Updated env var reference from `ANTHROPIC_API_KEY` to `GEMINI_API_KEY` in README setup steps
+- Updated `ai/claude.ts` description to reflect Gemini (file uses `GEMINI_API_KEY` / Google Generative AI)
+
+---
+
+## 2026-04-10 (screenshots added to readme)
+
+### README.md
+- Renamed title from "Mentor Match" to "Bloomkin" (actual app name)
+- Added Screenshots section with login, search, booking, and session confirmation pages
+- Copied screenshots into `docs/screenshots/`
+
+---
+
+## 2026-04-10 (readme and docs update)
+
+### README.md — Brought up to date with actual project state
+- Stack table: replaced "Supabase Edge Functions" (never built) with accurate backend description; added Three.js
+- Step 4: updated migration description to reflect all 6 migrations, not just `001_init.sql`
+- Project Structure: removed non-existent `supabase/functions/` tree; added all 6 migrations; added `src/components/`, `src/lib/zoom/`, all action files, `docs/` folder
+- Common Commands: added `test:integration` and `test:sim`
+- Troubleshooting: updated migration error message to reference any migration file, not just `001_init.sql`
+
+### docs/agents.md
+- Fixed reference from `claude.md` → `CLAUDE.md`
+
+### docs/Work.md
+- Updated Next.js version from 14 → 15
+- Replaced `shadcn/ui` (not installed) with `Three.js`
+- Removed `GEMINI_API_KEY` from env vars (Gemini not used; project uses Claude/Anthropic only)
+
+---
+
+## 2026-04-10 (project directory cleanup)
+
+### Directory Organization
+- Created `docs/` folder and moved `Work.md`, `agents.md`, `prd.md` into it (non-standard root docs)
+- Moved `ales_data.sql` to `supabase/` where DB files belong
+- Removed empty accidental directory `ales_data.sql;C`
+- Restored `CLAUDE.md` (was accidentally removed due to Windows case-insensitive filesystem when deleting lowercase `claude.md` duplicate)
+
+---
+
 ## 2026-04-04 (session detail page redesign)
 
 ### Session Detail Page — Dark premium alignment

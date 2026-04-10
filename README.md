@@ -1,6 +1,18 @@
-# Mentor Match
+# Bloomkin
 
 A mentor-mentee skill exchange platform. Users find mentors by skill, book sessions via Google Calendar + Google Meet, and earn reputation credits through high ratings.
+
+---
+
+## Screenshots
+
+| Login | Search |
+|---|---|
+| ![Login page](docs/screenshots/login.png) | ![Search page](docs/screenshots/search.png) |
+
+| Booking | Session Confirmation |
+|---|---|
+| ![Booking page](docs/screenshots/booking.png) | ![Session confirmation](docs/screenshots/session-confirmation.png) |
 
 ---
 
@@ -8,14 +20,14 @@ A mentor-mentee skill exchange platform. Users find mentors by skill, book sessi
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 15, TypeScript, Tailwind |
-| Backend | Next.js Server Actions, Supabase Edge Functions |
+| Frontend | Next.js 15, TypeScript, Tailwind, Three.js (3D effects) |
+| Backend | Next.js Server Actions |
 | Database | Supabase Postgres + Row Level Security |
 | Auth | Supabase Auth — Google OAuth only |
-| AI | Claude API (mentor matching) |
+| AI | Gemini API (mentor matching) |
 | Integrations | Google Calendar API, Google Meet API |
 | Hosting | Vercel |
-| Testing | Vitest (unit), Playwright (E2E) |
+| Testing | Vitest (unit + integration), Playwright (E2E) |
 
 ---
 
@@ -53,7 +65,7 @@ cp .env.local.example .env.local
 Open `.env.local` and fill in:
 
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from [Google Cloud Console](https://console.cloud.google.com/)
-- `ANTHROPIC_API_KEY` from [console.anthropic.com](https://console.anthropic.com)
+- `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/app/apikey)
 - Leave the Supabase values for now — Step 3 will print them for you
 
 ---
@@ -85,14 +97,13 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ---
 
-### 4. Apply the database migration
+### 4. Apply database migrations
 
 ```bash
 npx supabase db reset
 ```
 
-This drops and recreates the local database from scratch, applying `supabase/migrations/001_init.sql`.
-Run this every time you change the migration file.
+This drops and recreates the local database from scratch, applying all migrations in order from `supabase/migrations/`.
 
 To verify the schema was applied:
 
@@ -101,7 +112,7 @@ To verify the schema was applied:
 psql postgresql://postgres:postgres@localhost:54322/postgres
 
 # Inside psql:
-\dt public.*       # should list all 8 tables
+\dt public.*       # should list all tables
 \q                 # quit
 ```
 
@@ -160,8 +171,14 @@ npm run dev
 # Run unit tests
 npm run test:unit
 
+# Run integration tests
+npm run test:integration
+
 # Run E2E tests (requires dev server running)
 npm run test:e2e
+
+# Run fraud simulation
+npm run test:sim
 
 # Type check
 npx tsc --noEmit
@@ -185,27 +202,62 @@ There is no `docker-compose.yml` in this repo because the Supabase CLI manages i
 ## Project Structure
 
 ```
+docs/
+  Work.md              ← Team work split and task breakdown
+  agents.md            ← AI agent guidelines for this project
+  prd.md               ← Product requirements document
+
 supabase/
   config.toml          ← Supabase CLI config (ports, auth providers, Google OAuth)
+  ales_data.sql        ← Sample seed data
   migrations/
     001_init.sql        ← Full DB schema: tables, RLS policies, triggers, indexes
-  functions/
-    credit-award/       ← Edge Function: award credits after high rating
-    fraud-detect/       ← Edge Function: flag suspicious patterns
-    session-validate/   ← Edge Function: validate session via Meet attendance API
+    002_session_rls.sql ← Session row-level security policies
+    003_fraud_columns.sql ← Fraud detection columns
+    004_missing_session_columns.sql
+    005_dispute_resolution.sql
+    006_admin_flag.sql
 
 src/
-  actions/             ← Next.js Server Actions (auth, sessions, ratings, credits, disputes)
+  actions/             ← Next.js Server Actions
+    auth.ts            ← Google OAuth, session helpers, profile bootstrap
+    bookings.ts        ← Create booking + Google Calendar/Meet
+    credits.ts         ← Award and read credits
+    disputes.ts        ← File and resolve disputes
+    notifications.ts   ← User notifications
+    profile.ts         ← Profile read/update
+    ratings.ts         ← Submit and validate ratings
+    sessions.ts        ← Create, confirm, validate sessions
+    trust.ts           ← Trust state transitions and flags
   app/                 ← Next.js App Router pages
+    (auth)/login       ← Google sign-in screen
+    (dashboard)/       ← All authenticated pages
+      book/            ← Time slot picker + booking flow
+      credits/         ← Credit balance and history
+      disputes/        ← File and view disputes
+      notifications/   ← Notification centre
+      profile/         ← View and edit profile
+      search/          ← Skill/keyword mentor search
+      sessions/        ← Session history and detail
+  components/          ← Shared UI components
+    ui/                ← Page-specific UI pieces
   lib/
-    supabase/          ← Supabase client helpers
-    ai/                ← Claude API client (mentor matching)
-    calendar/          ← Google Calendar API client
-  types/               ← Shared TypeScript types
+    ai/claude.ts       ← Gemini API client (mentor matching)
+    calendar/client.ts ← Google Calendar API client
+    meet/client.ts     ← Google Meet API client
+    supabase/          ← Supabase client helpers (browser, server, admin)
+    zoom/client.ts     ← Zoom API client
+  middleware.ts        ← Auth middleware (route protection)
+  types/index.ts       ← Shared TypeScript types
+
+scripts/
+  get-google-token.ts  ← Helper to obtain Google OAuth refresh token
+  test-matching.ts     ← Test Claude mentor matching in isolation
 
 tests/
-  unit/                ← Vitest unit tests
-  e2e/                 ← Playwright end-to-end tests
+  unit/                ← Vitest unit tests (credits, ratings, sessions, trust)
+  integration/         ← Vitest integration tests (booking-rating flow, disputes)
+  e2e/                 ← Playwright end-to-end tests (auth, booking, search)
   simulation/          ← Fraud simulation scripts
 ```
 
@@ -220,7 +272,7 @@ tests/
 → Docker is pulling ~1 GB of images. Wait a few minutes. If it errors, run `supabase stop` then `supabase start` again.
 
 **`supabase db reset` shows a SQL error**
-→ There is a syntax error in `001_init.sql`. Read the error — it shows the exact line. Fix it, then run `supabase db reset` again.
+→ There is a syntax error in one of the migration files. Read the error — it shows the exact file and line. Fix it, then run `supabase db reset` again.
 
 **Google OAuth redirect fails locally**
 → Make sure `http://localhost:54321/auth/v1/callback` is added as an Authorized Redirect URI in Google Cloud Console. It is case-sensitive and must be exact.
